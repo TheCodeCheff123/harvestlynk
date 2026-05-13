@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@import "remixicon/fonts/remixicon.css";
+
+@theme inline {
+  --color-background: #ffffff;
+  --color-foreground: #1a1a1a;
+
+  --color-green-primary: #1e5631;
+  --color-green-mid: #2d7a3a;
+  --color-green-light: #e8f5e9;
+  --color-amber: #e8a000;
+  --color-amber-light: #fef3c7;
+
+  --font-sans: var(--font-geist-sans);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
