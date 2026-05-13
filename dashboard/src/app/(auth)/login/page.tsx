@@ -1,7 +1,16 @@
 "use client";
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+
+function RoleDetector({ onRole }: { onRole: (r: "buyer" | "farmer") => void }) {
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const r = searchParams.get("role");
+    if (r === "farmer" || r === "buyer") onRole(r);
+  }, [searchParams, onRole]);
+  return null;
+}
 
 export default function Login() {
   const router = useRouter();
@@ -18,6 +27,9 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <Suspense>
+        <RoleDetector onRole={setRole} />
+      </Suspense>
       <div className="w-full max-w-md bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
         <div className="p-8">
           <h1 className="text-2xl font-bold text-center text-[#0D631B] mb-1">FarmConnect</h1>

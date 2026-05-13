@@ -1,5 +1,7 @@
 import Image from "next/image";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+
 export default function Hero() {
   return (
     <section className="relative min-h-screen flex items-center overflow-hidden">
@@ -37,13 +39,13 @@ export default function Hero() {
           {/* CTAs */}
           <div className="flex flex-wrap gap-4 mb-10">
             <a
-              href="#"
+              href={`${APP_URL}/login?role=buyer`}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gray-900 text-white font-medium hover:bg-gray-800 transition-colors"
             >
               I am a Buyer <i className="ri-shopping-cart-line" />
             </a>
             <a
-              href="#"
+              href={`${APP_URL}/login?role=farmer`}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-[#e8a000] text-white font-medium hover:bg-[#d09000] transition-colors"
             >
               I am a Farmer <i className="ri-plant-line" />
