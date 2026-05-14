@@ -27,8 +27,8 @@ export default function FarmerSignup() {
       </div>
 
       {/* Right: form */}
-      <div className="flex-1 flex items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex items-start lg:items-center justify-center p-5 sm:p-8 bg-white overflow-y-auto">
+        <div className="w-full max-w-md py-8 lg:py-0">
           <h2 className="text-2xl font-bold text-[#0D631B] mb-1">Create Farmer Account</h2>
           <p className="text-gray-400 text-sm mb-7">Step 1: Basic Farm Information</p>
 
@@ -57,7 +57,7 @@ export default function FarmerSignup() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-semibold text-gray-800 mb-1.5">Location (State/LGA)</label>
                 <div className="relative">

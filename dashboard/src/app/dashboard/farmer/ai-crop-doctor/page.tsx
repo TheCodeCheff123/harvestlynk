@@ -106,7 +106,7 @@ export default function AICropDoctor() {
       )}
 
       {!image && (
-        <div className="rounded-2xl border border-gray-100 p-12 flex flex-col items-center text-center bg-white">
+        <div className="rounded-2xl border border-gray-100 p-6 sm:p-12 flex flex-col items-center text-center bg-white">
           <div className="w-20 h-20 rounded-2xl bg-[#e8f5e9] flex items-center justify-center mb-6">
             <i className="ri-leaf-line text-[#0D631B] text-4xl" />
           </div>
@@ -132,7 +132,7 @@ export default function AICropDoctor() {
       )}
 
       {image && analyzing && (
-        <div className="rounded-2xl border border-gray-100 p-12 flex flex-col items-center text-center bg-white">
+        <div className="rounded-2xl border border-gray-100 p-6 sm:p-12 flex flex-col items-center text-center bg-white">
           <img src={image} alt="Uploaded crop" className="w-32 h-32 object-cover rounded-xl mb-6" />
           <div className="flex items-center gap-3 text-[#0D631B] font-medium">
             <i className="ri-loader-4-line animate-spin text-2xl" />
@@ -150,7 +150,7 @@ export default function AICropDoctor() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-8 px-6 pb-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 px-4 md:px-6 pb-6">
             {/* Left column */}
             <div>
               <div className="flex items-start gap-4 mb-6">

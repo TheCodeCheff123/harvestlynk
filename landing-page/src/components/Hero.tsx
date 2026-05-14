@@ -59,8 +59,8 @@ export default function Hero() {
           </div>
         </div>
 
-        {/* Floating cards */}
-        <div className="absolute top-40 right-6 md:right-16 max-w-xs">
+        {/* Floating cards — hidden on small screens to avoid overlap */}
+        <div className="hidden lg:block absolute top-40 right-6 md:right-16 max-w-xs">
           <div className="bg-white rounded-xl p-4 shadow-xl">
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-lg bg-[#1e5631] flex items-center justify-center flex-shrink-0">
@@ -78,7 +78,7 @@ export default function Hero() {
           </div>
         </div>
 
-        <div className="absolute bottom-24 right-6 md:right-16">
+        <div className="hidden lg:block absolute bottom-24 right-6 md:right-16">
           <div className="bg-white rounded-xl px-4 py-3 shadow-xl flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-[#1e5631] flex items-center justify-center flex-shrink-0">
               <i className="ri-shield-check-fill text-white" />

@@ -41,8 +41,8 @@ export default function Login() {
       </div>
 
       {/* Right: form */}
-      <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white">
-        <div className="w-full max-w-md">
+      <div className="flex-1 flex flex-col items-center justify-start lg:justify-center p-5 sm:p-8 bg-white overflow-y-auto">
+        <div className="w-full max-w-md py-8 lg:py-0">
           <h1 className="text-2xl font-bold text-[#0D631B] mb-1">FarmConnect</h1>
           <h2 className="text-xl font-bold text-gray-900 mb-1">Welcome Back</h2>
           <p className="text-gray-400 text-sm mb-7">

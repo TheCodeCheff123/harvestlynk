@@ -29,11 +29,11 @@ export default function ListProductModal({ onClose }: Props) {
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto px-7 py-6 space-y-7 flex-1">
+        <div className="overflow-y-auto px-4 sm:px-7 py-6 space-y-7 flex-1">
           {/* Product Details */}
           <div>
             <p className="text-xs font-bold text-[#0D631B] tracking-widest uppercase mb-4">Product Details</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm text-gray-700 mb-1.5">Produce Name</label>
                 <input type="text" placeholder="e.g., Organic Cocoa" className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
@@ -65,7 +65,7 @@ export default function ListProductModal({ onClose }: Props) {
           {/* Logistics */}
           <div>
             <p className="text-xs font-bold text-[#0D631B] tracking-widest uppercase mb-4">Logistics</p>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm text-gray-700 mb-1.5">Storage Location</label>
                 <input type="text" placeholder="e.g., Warehouse A, Kano" className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
@@ -117,7 +117,7 @@ export default function ListProductModal({ onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="border-t border-gray-100 px-7 py-4 flex items-center justify-end gap-3 bg-gray-50">
+        <div className="border-t border-gray-100 px-4 sm:px-7 py-4 flex items-center justify-end gap-3 bg-gray-50">
           <button onClick={onClose} className="px-6 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-100 transition-colors">
             Save as Draft
           </button>

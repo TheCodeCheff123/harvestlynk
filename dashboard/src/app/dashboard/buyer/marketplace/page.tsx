@@ -21,14 +21,14 @@ export default function BuyerMarketplace() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Agricultural Marketplace</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Agricultural Marketplace</h1>
         <p className="text-gray-500 mt-1">
           Direct from Nigerian farms to your doorstep. Secure escrow-protected transactions for every harvest.
         </p>
       </div>
 
       {/* Search + filter */}
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <i className="ri-search-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -39,7 +39,7 @@ export default function BuyerMarketplace() {
             className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:border-[#0D631B]"
           />
         </div>
-        <button className="flex items-center gap-2 px-5 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+        <button className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-600 hover:bg-gray-50 transition-colors">
           <i className="ri-equalizer-line" /> Advanced Filters <i className="ri-arrow-down-s-line" />
         </button>
       </div>
@@ -59,7 +59,7 @@ export default function BuyerMarketplace() {
       </div>
 
       {/* Product grid */}
-      <div className="grid grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         {products.map((p, i) => (
           <div key={i} className="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:shadow-md transition-shadow">
             <div className={`relative h-44 bg-gradient-to-br ${p.color} flex items-center justify-center`}>

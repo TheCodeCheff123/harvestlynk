@@ -10,17 +10,17 @@ export default function Wallet() {
         <p className="text-[#0D631B] text-sm flex items-center gap-1 mb-1">
           <i className="ri-lock-line" /> Escrow Protected Funds
         </p>
-        <h1 className="text-3xl font-bold text-gray-900">Withdrawal Dashboard</h1>
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Withdrawal Dashboard</h1>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left col */}
-        <div className="col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4">
           {/* Available balance */}
-          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm p-5 md:p-6 border border-gray-100">
             <p className="text-gray-400 text-xs font-semibold tracking-widest uppercase mb-2">Available for Withdrawal</p>
-            <div className="flex items-center gap-3">
-              <p className="text-4xl font-bold text-[#0D631B]">₦127,500.00</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <p className="text-3xl md:text-4xl font-bold text-[#0D631B]">₦127,500.00</p>
               <span className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-medium">
                 <i className="ri-checkbox-circle-line" /> Verified
               </span>
@@ -29,11 +29,11 @@ export default function Wallet() {
           </div>
 
           {/* Request Payout */}
-          <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
+          <div className="bg-white rounded-2xl shadow-sm p-5 md:p-6 border border-gray-100">
             <h2 className="text-lg font-semibold text-gray-900 mb-5">Request Payout</h2>
 
             <p className="text-sm font-medium text-gray-700 mb-3">Select Bank Account</p>
-            <div className="flex gap-3 mb-5">
+            <div className="flex flex-col sm:flex-row gap-3 mb-5">
               <div className="flex-1 border-2 border-[#0D631B] rounded-xl p-4 flex items-center justify-between">
                 <div>
                   <p className="font-semibold text-gray-900 text-sm">GT Banks</p>
@@ -41,7 +41,7 @@ export default function Wallet() {
                 </div>
                 <i className="ri-checkbox-circle-fill text-[#0D631B] text-xl" />
               </div>
-              <button className="flex-1 border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-gray-300 transition-colors">
+              <button className="flex-1 border-2 border-dashed border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center gap-1 text-gray-400 hover:border-gray-300 transition-colors min-h-[72px]">
                 <i className="ri-add-circle-line text-xl" />
                 <span className="text-xs">Add New Bank</span>
               </button>
@@ -115,11 +115,11 @@ export default function Wallet() {
                   <div className={`w-9 h-9 rounded-full ${w.iconStyle} flex items-center justify-center flex-shrink-0`}>
                     <i className={`${w.icon} text-sm`} />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">{w.label}</p>
                     <p className="text-xs text-gray-400">{w.date}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <p className="text-sm font-semibold text-gray-900">{w.amount}</p>
                     <p className={`text-xs font-medium ${w.statusStyle}`}>{w.status}</p>
                   </div>

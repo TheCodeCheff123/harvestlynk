@@ -1,7 +1,7 @@
 export default function Profile() {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left: Profile card */}
         <div className="space-y-4">
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100 flex flex-col items-center text-center">
@@ -62,7 +62,7 @@ export default function Profile() {
         </div>
 
         {/* Right: About + Listings + Ledger */}
-        <div className="col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-5">
           {/* About the Farm */}
           <div className="bg-white rounded-2xl shadow-sm p-6 border border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900 mb-3">About the Farm</h3>
@@ -84,7 +84,7 @@ export default function Profile() {
                 View All <i className="ri-arrow-right-s-line" />
               </a>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 { name: "Premium White Yams", sub: "100kg Bags • Available: 24", price: "₦45,000 / bag", bg: "from-stone-100 to-stone-200", icon: "ri-plant-line text-stone-600" },
                 { name: "Grade-A Yellow Maize", sub: "MT (Metric Ton) • Available: 5", price: "₦320,000 / MT", bg: "from-yellow-100 to-yellow-200", icon: "ri-seedling-line text-yellow-600" },
@@ -113,43 +113,45 @@ export default function Profile() {
 
           {/* Transaction Ledger */}
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100">
+            <div className="px-4 md:px-6 py-4 border-b border-gray-100">
               <h3 className="text-lg font-semibold text-gray-900">Transaction Ledger Summary</h3>
             </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-400 text-xs border-b border-gray-100">
-                  <th className="text-left px-6 py-3 font-semibold tracking-wide">REFERENCE</th>
-                  <th className="text-left px-6 py-3 font-semibold tracking-wide">PRODUCT</th>
-                  <th className="text-left px-6 py-3 font-semibold tracking-wide">AMOUNT</th>
-                  <th className="text-left px-6 py-3 font-semibold tracking-wide">STATUS</th>
-                  <th className="text-left px-6 py-3 font-semibold tracking-wide">RATING</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {[
-                  { ref: "FC-88219", product: "Cassava Tubers (500kg)", amount: "₦185,000", stars: 5 },
-                  { ref: "FC-87902", product: "Sorghum (2 MT)", amount: "₦640,000", stars: 4 },
-                  { ref: "FC-86114", product: "White Beans (800kg)", amount: "₦290,000", stars: 5 },
-                ].map((row) => (
-                  <tr key={row.ref} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-gray-700 font-medium">{row.ref}</td>
-                    <td className="px-6 py-4 text-gray-600">{row.product}</td>
-                    <td className="px-6 py-4 font-semibold text-gray-900">{row.amount}</td>
-                    <td className="px-6 py-4">
-                      <span className="px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">RELEASED</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex gap-0.5">
-                        {[1,2,3,4,5].map((s) => (
-                          <i key={s} className={`ri-star-${s <= row.stars ? "fill" : "line"} text-amber-400 text-sm`} />
-                        ))}
-                      </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm min-w-[480px]">
+                <thead>
+                  <tr className="text-gray-400 text-xs border-b border-gray-100">
+                    <th className="text-left px-4 md:px-6 py-3 font-semibold tracking-wide">REFERENCE</th>
+                    <th className="text-left px-4 md:px-6 py-3 font-semibold tracking-wide">PRODUCT</th>
+                    <th className="text-left px-4 md:px-6 py-3 font-semibold tracking-wide">AMOUNT</th>
+                    <th className="text-left px-4 md:px-6 py-3 font-semibold tracking-wide">STATUS</th>
+                    <th className="text-left px-4 md:px-6 py-3 font-semibold tracking-wide">RATING</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {[
+                    { ref: "FC-88219", product: "Cassava Tubers (500kg)", amount: "₦185,000", stars: 5 },
+                    { ref: "FC-87902", product: "Sorghum (2 MT)", amount: "₦640,000", stars: 4 },
+                    { ref: "FC-86114", product: "White Beans (800kg)", amount: "₦290,000", stars: 5 },
+                  ].map((row) => (
+                    <tr key={row.ref} className="hover:bg-gray-50">
+                      <td className="px-4 md:px-6 py-4 text-gray-700 font-medium">{row.ref}</td>
+                      <td className="px-4 md:px-6 py-4 text-gray-600">{row.product}</td>
+                      <td className="px-4 md:px-6 py-4 font-semibold text-gray-900">{row.amount}</td>
+                      <td className="px-4 md:px-6 py-4">
+                        <span className="px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-xs font-semibold">RELEASED</span>
+                      </td>
+                      <td className="px-4 md:px-6 py-4">
+                        <div className="flex gap-0.5">
+                          {[1,2,3,4,5].map((s) => (
+                            <i key={s} className={`ri-star-${s <= row.stars ? "fill" : "line"} text-amber-400 text-sm`} />
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
