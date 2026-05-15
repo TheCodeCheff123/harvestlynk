@@ -3,10 +3,17 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, fadeUp, scaleIn } from "@/lib/motion";
 
+interface TreatmentDetail {
+  symptoms: string;
+  cause: string;
+  treatment: string;
+  prevention: string;
+}
+
 interface PredictionResult {
   filename: string;
   prediction: string;
-  treatment: string;
+  treatment: TreatmentDetail;
   confidence: number;
   status: string;
 }
@@ -362,15 +369,27 @@ export default function AICropDoctor() {
                 <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
                   <i className="ri-first-aid-kit-line text-[#0D631B]" /> Recommended Treatment
                 </h3>
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="rounded-xl bg-[#f0f7f0] border-l-4 border-[#0D631B] p-4 mb-6"
-                >
-                  <p className="text-sm font-semibold text-[#0D631B] mb-1">Treatment Plan</p>
-                  <p className="text-gray-600 text-sm leading-relaxed">{result.treatment}</p>
-                </motion.div>
+                <div className="space-y-3 mb-6">
+                  {[
+                    { icon: "ri-bug-line", label: "Symptoms", value: result.treatment.symptoms, color: "border-amber-500 bg-amber-50" },
+                    { icon: "ri-microscope-line", label: "Cause", value: result.treatment.cause, color: "border-red-400 bg-red-50" },
+                    { icon: "ri-medicine-bottle-line", label: "Treatment", value: result.treatment.treatment, color: "border-[#0D631B] bg-[#f0f7f0]" },
+                    { icon: "ri-shield-line", label: "Prevention", value: result.treatment.prevention, color: "border-blue-400 bg-blue-50" },
+                  ].map((item, i) => (
+                    <motion.div
+                      key={item.label}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3 + i * 0.08 }}
+                      className={`rounded-xl border-l-4 p-3 ${item.color}`}
+                    >
+                      <p className="text-xs font-semibold text-gray-500 flex items-center gap-1 mb-1">
+                        <i className={item.icon} /> {item.label.toUpperCase()}
+                      </p>
+                      <p className="text-gray-700 text-sm leading-relaxed">{item.value}</p>
+                    </motion.div>
+                  ))}
+                </div>
 
                 <div className="border-t border-gray-100 pt-5">
                   <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
@@ -379,7 +398,7 @@ export default function AICropDoctor() {
                   <ol className="space-y-4">
                     {[
                       { title: "Isolate Affected Plants", desc: "Separate visibly infected plants immediately to stop spread." },
-                      { title: "Apply Treatment", desc: result.treatment },
+                      { title: "Apply Treatment", desc: result.treatment.treatment },
                       { title: "Monitor Daily", desc: "Check new growth every morning for recurring symptoms." },
                     ].map((step, i) => (
                       <motion.li
