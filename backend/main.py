@@ -40,10 +40,16 @@ class Status(StrEnum):
     COMPLETED = "completed"
     FAILED = "failed"
 
-class PathogenResponse(BaseModel):
-    filename: str 
-    prediction: str
+class TreatmentInfo(BaseModel):
+    symptoms: str
+    cause: str
     treatment: str
+    prevention: str
+
+class PathogenResponse(BaseModel):
+    filename: str
+    prediction: str
+    treatment: TreatmentInfo
     confidence: float = Field(..., ge=0.0, le=1.0)
     status: Status
 
@@ -82,7 +88,7 @@ async def predict_pathogen(file: UploadFile = File(...)):
         
         return {
             'filename': file.filename,
-            "prediction": full_label.replace("___", " "),
+            "prediction": full_label.replace("___", " ").replace("_", " "),
             "treatment": treatment_info,
             "confidence": round(float(np.max(predictions[0])), 4),
             "status": Status.COMPLETED,
