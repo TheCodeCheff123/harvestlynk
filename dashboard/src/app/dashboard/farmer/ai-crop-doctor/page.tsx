@@ -3,10 +3,20 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, fadeUp, scaleIn } from "@/lib/motion";
 
+interface PredictionResult {
+  filename: string;
+  prediction: string;
+  treatment: string;
+  confidence: number;
+  status: string;
+}
+
 export default function AICropDoctor() {
   const [image, setImage] = useState<string | null>(null);
-  const [analyzed, setAnalyzed] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [result, setResult] = useState<PredictionResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
   const galleryRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -18,13 +28,36 @@ export default function AICropDoctor() {
     }
   }, [showCamera]);
 
-  function processImage(dataUrl: string) {
+  async function analyzeImage(file: File, dataUrl: string) {
     setImage(dataUrl);
+    setImageFile(file);
     setAnalyzing(true);
-    setTimeout(() => {
+    setError(null);
+    setResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+      const res = await fetch(`${apiUrl}/predict`, {
+        method: "POST",
+        headers: { accept: "application/json" },
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Server responded ${res.status}: ${text}`);
+      }
+
+      const data: PredictionResult = await res.json();
+      setResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unexpected error occurred. Please try again.");
+    } finally {
       setAnalyzing(false);
-      setAnalyzed(true);
-    }, 1800);
+    }
   }
 
   async function openCamera() {
@@ -47,7 +80,13 @@ export default function AICropDoctor() {
     canvas.getContext("2d")?.drawImage(videoRef.current, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg");
     stopCamera();
-    processImage(dataUrl);
+    // Convert data URL to File for API
+    fetch(dataUrl)
+      .then((r) => r.blob())
+      .then((blob) => {
+        const file = new File([blob], "capture.jpg", { type: "image/jpeg" });
+        analyzeImage(file, dataUrl);
+      });
   }
 
   function stopCamera() {
@@ -60,15 +99,31 @@ export default function AICropDoctor() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = (ev) => processImage(ev.target?.result as string);
+    reader.onload = (ev) => analyzeImage(file, ev.target?.result as string);
     reader.readAsDataURL(file);
+    // Reset so same file can be re-selected
+    e.target.value = "";
   }
 
   function reset() {
     setImage(null);
-    setAnalyzed(false);
+    setImageFile(null);
+    setResult(null);
+    setError(null);
     setAnalyzing(false);
   }
+
+  // Parse "Apple Apple_scab" → "Apple Scab" style display
+  function formatPrediction(raw: string) {
+    return raw
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  const confidencePct = result ? Math.round(result.confidence * 100) : 0;
+  const severityLabel = confidencePct >= 80 ? "High Priority" : confidencePct >= 50 ? "Medium Priority" : "Low Priority";
+  const severityColor = confidencePct >= 80 ? "text-red-600" : confidencePct >= 50 ? "text-amber-600" : "text-green-600";
+  const severityBg = confidencePct >= 80 ? "border-red-100 bg-red-50" : confidencePct >= 50 ? "border-amber-100 bg-amber-50" : "border-green-100 bg-green-50";
 
   return (
     <motion.div
@@ -80,8 +135,7 @@ export default function AICropDoctor() {
       <motion.div variants={fadeUp}>
         <h1 className="text-3xl font-bold text-gray-900">AI Crop Doctor</h1>
         <p className="text-[#40493D] mt-1">
-          Upload a photo of your diseased crops for instant diagnosis and expert treatment
-          recommendations powered by agricultural AI.
+          Upload a photo of your crops for instant AI diagnosis and expert treatment recommendations.
         </p>
       </motion.div>
 
@@ -127,6 +181,7 @@ export default function AICropDoctor() {
       </AnimatePresence>
 
       <AnimatePresence mode="wait">
+        {/* Upload prompt */}
         {!image && (
           <motion.div
             key="upload"
@@ -169,6 +224,7 @@ export default function AICropDoctor() {
           </motion.div>
         )}
 
+        {/* Analyzing */}
         {image && analyzing && (
           <motion.div
             key="analyzing"
@@ -186,7 +242,40 @@ export default function AICropDoctor() {
           </motion.div>
         )}
 
-        {image && analyzed && (
+        {/* Error state */}
+        {image && !analyzing && error && (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl border border-red-100 bg-red-50 p-6 flex flex-col items-center text-center"
+          >
+            <i className="ri-error-warning-line text-red-500 text-4xl mb-3" />
+            <h3 className="text-base font-bold text-red-700 mb-1">Analysis Failed</h3>
+            <p className="text-red-500 text-sm mb-5 max-w-sm">{error}</p>
+            <div className="flex gap-3 flex-wrap justify-center">
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => imageFile && analyzeImage(imageFile, image)}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-[#0D631B] text-white text-sm font-medium hover:bg-[#0a4f15] transition-colors"
+              >
+                <i className="ri-refresh-line" /> Retry
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={reset}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl border border-gray-200 text-gray-600 text-sm hover:bg-gray-50 transition-colors"
+              >
+                <i className="ri-arrow-left-line" /> Try Another Image
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Result */}
+        {image && !analyzing && result && (
           <motion.div
             key="result"
             initial={{ opacity: 0, y: 16 }}
@@ -201,12 +290,12 @@ export default function AICropDoctor() {
                 transition={{ delay: 0.2, type: "spring", stiffness: 260 }}
                 className="flex items-center gap-2 px-4 py-1.5 rounded-full bg-blue-600 text-white text-xs font-semibold"
               >
-                <i className="ri-checkbox-circle-fill" /> Expert Verified
+                <i className="ri-checkbox-circle-fill" /> AI Verified
               </motion.span>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 px-4 md:px-6 pb-6">
-              {/* Left column */}
+              {/* Left */}
               <motion.div
                 initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -218,9 +307,11 @@ export default function AICropDoctor() {
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full border border-red-300 text-red-600 text-xs font-semibold mb-2">
                       <i className="ri-alert-line" /> DIAGNOSIS CONFIRMED
                     </span>
-                    <h2 className="text-2xl font-bold text-gray-900 leading-tight">Cassava Mosaic<br />Disease</h2>
+                    <h2 className="text-xl font-bold text-gray-900 leading-tight">
+                      {formatPrediction(result.prediction)}
+                    </h2>
                     <p className="text-gray-400 text-xs mt-1 flex items-center gap-1">
-                      <i className="ri-calendar-line" /> Analyzed: June 24, 2024
+                      <i className="ri-file-line" /> {result.filename}
                     </p>
                   </div>
                 </div>
@@ -234,12 +325,12 @@ export default function AICropDoctor() {
                   >
                     <p className="text-xs font-semibold text-gray-500 tracking-wide mb-2">AI CONFIDENCE</p>
                     <p className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
-                      94% <i className="ri-shield-check-line text-[#0D631B] text-lg" />
+                      {confidencePct}% <i className="ri-shield-check-line text-[#0D631B] text-lg" />
                     </p>
                     <div className="w-full h-2 rounded-full bg-gray-100">
                       <motion.div
                         initial={{ width: 0 }}
-                        animate={{ width: "94%" }}
+                        animate={{ width: `${confidencePct}%` }}
                         transition={{ delay: 0.5, duration: 0.8, ease: "easeOut" }}
                         className="h-2 rounded-full bg-[#0D631B]"
                       />
@@ -249,18 +340,20 @@ export default function AICropDoctor() {
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.35 }}
-                    className="rounded-xl border border-red-100 bg-red-50 p-4"
+                    className={`rounded-xl border p-4 ${severityBg}`}
                   >
-                    <p className="text-xs font-semibold text-red-500 tracking-wide mb-2 flex items-center gap-1">
+                    <p className={`text-xs font-semibold tracking-wide mb-2 flex items-center gap-1 ${severityColor}`}>
                       <i className="ri-error-warning-line" /> RISK SEVERITY
                     </p>
-                    <p className="text-xl font-bold text-red-600">High Priority</p>
-                    <p className="text-red-400 text-xs mt-1">Immediate action required to save harvest</p>
+                    <p className={`text-lg font-bold ${severityColor}`}>{severityLabel}</p>
+                    <p className={`text-xs mt-1 ${severityColor} opacity-80`}>
+                      {confidencePct >= 80 ? "Immediate action required" : confidencePct >= 50 ? "Monitor closely" : "Low risk detected"}
+                    </p>
                   </motion.div>
                 </div>
               </motion.div>
 
-              {/* Right column */}
+              {/* Right */}
               <motion.div
                 initial={{ opacity: 0, x: 16 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -269,33 +362,25 @@ export default function AICropDoctor() {
                 <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
                   <i className="ri-first-aid-kit-line text-[#0D631B]" /> Recommended Treatment
                 </h3>
-                <div className="space-y-3 mb-6">
-                  {[
-                    { title: "Resistant Varieties", desc: "Immediately source TMS 98/0505 or TME 419 cuttings for the next planting season to ensure future crop immunity." },
-                    { title: "Pesticide Advice", desc: "Apply Neem oil or approved systemic insecticides to control the whitefly (Bemisia tabaci) population which spreads the virus." },
-                  ].map((item, i) => (
-                    <motion.div
-                      key={item.title}
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3 + i * 0.1 }}
-                      className="rounded-xl bg-[#f0f7f0] border-l-4 border-[#0D631B] p-4"
-                    >
-                      <p className="text-sm font-semibold text-[#0D631B] mb-1">{item.title}</p>
-                      <p className="text-gray-600 text-sm">{item.desc}</p>
-                    </motion.div>
-                  ))}
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="rounded-xl bg-[#f0f7f0] border-l-4 border-[#0D631B] p-4 mb-6"
+                >
+                  <p className="text-sm font-semibold text-[#0D631B] mb-1">Treatment Plan</p>
+                  <p className="text-gray-600 text-sm leading-relaxed">{result.treatment}</p>
+                </motion.div>
 
                 <div className="border-t border-gray-100 pt-5">
                   <h3 className="font-bold text-gray-900 flex items-center gap-2 mb-4">
-                    <i className="ri-checkbox-multiple-line text-[#0D631B]" /> Recommended Action Plan
+                    <i className="ri-checkbox-multiple-line text-[#0D631B]" /> General Action Plan
                   </h3>
                   <ol className="space-y-4">
                     {[
-                      { title: "Isolate Infected Plants", desc: "Remove and safely destroy severely infected plants to prevent whitefly transmission." },
-                      { title: "Apply Neem Oil", desc: "Spray organic neem oil solution every 7 days to control the whitefly population." },
-                      { title: "Monitor Daily", desc: "Check new leaves for signs of yellowing or mottling every morning." },
+                      { title: "Isolate Affected Plants", desc: "Separate visibly infected plants immediately to stop spread." },
+                      { title: "Apply Treatment", desc: result.treatment },
+                      { title: "Monitor Daily", desc: "Check new growth every morning for recurring symptoms." },
                     ].map((step, i) => (
                       <motion.li
                         key={i}
