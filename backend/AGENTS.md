@@ -1,0 +1,10 @@
+- All PRs that change the database schema in some form should have matching schema migration files
+- Always use `bun` in place of `npm` and `npx`
+- Whenever data is being returned from a controller with a response DTO, use the schema on that DTO to "decode" the data being returned. This ensures that the types are in sync since the `.decode()` method from Zod expects type safe arguments unlike `.parse()`
+- Do not use `z.date()` in any DTO, instead, use `dateSchema` defined in [date-schema.ts](src/utils/date-schema.ts)
+- All endpoints should be documented properly with the appropirate @nestjs/swagger decorators.
+- Auth logic belongs in controllers, domain logic in services, and persistence + access constraints belong in repositories. Repositories are policy-aware (ownership/tenancy scoped), not generic CRUD.
+- Apply try catch blocks in the relevant places, especially in repositories, but in services also if needed. Users should get the proper error message, but detailed error logs should go to the server.
+- When logging errors, include a description, the error, and relevant data for debugging which must always be an object with properties. All console.logs must have these three arguments: description, error, and data.
+- Endpoints that will be hit by merchants should require an API key. Endpoints to be hit by anyone else should not require an API key.
+- All independent async requests should be fired in batch with `Promise.all()`

@@ -1,0 +1,525 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../generated/prisma"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+generator zod {
+  provider = "prisma-zod-generator"
+  output   = "../src/db/schemas"
+  config   = "./zod-generator.config.json"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Extension {
+  pgcrypto
+}
+
+// ==================== ENUMS ====================
+
+enum ScanStatus {
+  pending
+  processing
+  completed
+  failed
+}
+
+enum Severity {
+  low
+  medium
+  high
+}
+
+enum ListingStatus {
+  active
+  sold
+  expired
+  paused
+}
+
+enum PaymentStatus {
+  pending
+  success
+  failed
+  refunded
+}
+
+enum PayoutStatus {
+  pending
+  processing
+  success
+  failed
+}
+
+enum TransactionType {
+  credit
+  debit
+}
+
+enum TransactionStatus {
+  pending
+  completed
+  failed
+}
+
+enum OrderStatus {
+  pending_payment
+  payment_confirmed
+  processing
+  ready_for_pickup
+  completed
+  cancelled
+  disputed
+}
+
+// ==================== USER MANAGEMENT ====================
+
+// ==================== FARMER & SCAN TABLES ====================
+
+model Scan {
+  scan_id                   String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id                   String         @db.Text
+  image_url                 String         @db.Text
+  thumbnail_url             String?        @db.Text
+  crop_type                 String         @db.VarChar(50)
+  latitude                  Decimal?       @db.Decimal(10, 8)
+  longitude                 Decimal?       @db.Decimal(11, 8)
+  farmer_notes              String?        @db.Text
+  status                    ScanStatus     @default(pending)
+  result_disease            String?        @db.VarChar(100)
+  result_confidence         Decimal?       @db.Decimal(5, 4)
+  result_severity           Severity?
+  result_recommendations    Json?          @db.JsonB
+  processing_time_ms        Int?
+  model_version             String?        @db.VarChar(20)
+  created_at                DateTime       @default(now())
+  completed_at              DateTime?
+
+  user                      User           @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  ai_predictions            AiPrediction[]
+
+  @@index([user_id])
+  @@index([status])
+  @@index([crop_type])
+  @@index([created_at(sort: Desc)])
+  @@map("scans")
+}
+
+model FarmerCrop {
+  crop_id               String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id               String    @db.Text
+  crop_type             String    @db.VarChar(50)
+  variety               String?   @db.VarChar(50)
+  planting_date         DateTime? @db.Date
+  expected_harvest_date DateTime? @db.Date
+  field_size_hectares   Decimal?  @db.Decimal(8, 2)
+  is_active             Boolean   @default(true)
+  created_at            DateTime  @default(now())
+  updated_at            DateTime  @default(now()) @updatedAt
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([is_active])
+  @@map("farmer_crops")
+}
+
+// ==================== AI VERIFICATION TABLES ====================
+
+model AiPrediction {
+  prediction_id     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  scan_id           String?  @db.Uuid
+  input_image_url   String   @db.Text
+  top_disease       String   @db.VarChar(100)
+  top_confidence    Decimal  @db.Decimal(5, 4)
+  all_predictions   Json     @db.JsonB
+  model_version     String   @db.VarChar(20)
+  inference_time_ms Int
+  created_at        DateTime @default(now())
+
+  scan Scan? @relation(fields: [scan_id], references: [scan_id], onDelete: SetNull)
+
+  @@index([scan_id])
+  @@index([top_disease])
+  @@index([created_at(sort: Desc)])
+  @@map("ai_predictions")
+}
+
+model InputVerification {
+  verification_id    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id            String   @db.Text
+  qr_code            String   @db.VarChar(100)
+  product_type       String   @db.VarChar(50)
+  verified           Boolean
+  confidence         Decimal  @db.Decimal(5, 4)
+  product_details    Json?    @db.JsonB
+  verification_method String?  @db.VarChar(50)
+  created_at         DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([qr_code])
+  @@index([verified])
+  @@map("input_verifications")
+}
+
+model LivenessCheck {
+  check_id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id               String   @db.Text
+  selfie_image_url      String   @db.Text
+  voice_note_url        String?  @db.Text
+  liveness_score        Decimal  @db.Decimal(5, 4)
+  face_match_confidence Decimal? @db.Decimal(5, 4)
+  is_live               Boolean
+  spoof_detected        Boolean  @default(false)
+  passed                Boolean
+  created_at            DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([passed])
+  @@map("liveness_checks")
+}
+
+// ==================== MARKETPLACE TABLES ====================
+
+model Listing {
+  listing_id       String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  farmer_id        String        @db.Text
+  product_name     String        @db.VarChar(100)
+  category         String        @db.VarChar(50)
+  quantity         Decimal       @db.Decimal(10, 2)
+  unit             String        @db.VarChar(20)
+  price_per_unit   Int
+  total_price      Int
+  harvest_date     DateTime?     @db.Date
+  location_state   String        @db.VarChar(50)
+  location_lga     String?       @db.VarChar(50)
+  pickup_address   String?       @db.Text
+  latitude         Decimal?      @db.Decimal(10, 8)
+  longitude        Decimal?      @db.Decimal(11, 8)
+  images           Json?         @db.JsonB
+  delivery_options Json?         @default("[\"pickup\"]") @db.JsonB
+  description      String?       @db.Text
+  status           ListingStatus @default(active)
+  views            Int           @default(0)
+  inquiries        Int           @default(0)
+  expires_at       DateTime      @default(dbgenerated("CURRENT_TIMESTAMP + INTERVAL '30 days'"))
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @default(now()) @updatedAt
+
+  farmer        User          @relation(fields: [farmer_id], references: [id], onDelete: Cascade)
+  orders        Order[]
+  listing_views ListingView[]
+
+  @@index([farmer_id])
+  @@index([status])
+  @@index([category])
+  @@index([location_state])
+  @@index([created_at(sort: Desc)])
+  @@map("listings")
+}
+
+model ListingView {
+  view_id    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listing_id String   @db.Uuid
+  user_id    String?  @db.Text // FIXED: Changed from @db.Uuid to @db.Text to match User.id
+  ip_address String?  @db.Inet
+  viewed_at  DateTime @default(now())
+
+  listing Listing @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)
+  user    User?   @relation(fields: [user_id], references: [id], onDelete: SetNull)
+
+  @@index([listing_id])
+  @@index([user_id])
+  @@map("listing_views")
+}
+
+// ==================== TRUST SCORE TABLES ====================
+
+model TrustScoreHistory {
+  history_id     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id        String   @db.Text
+  previous_score Int
+  new_score      Int
+  change_amount  Int
+  reason         String   @db.VarChar(255)
+  reference_id   String?  @db.Uuid
+  reference_type String?  @db.VarChar(50)
+  created_at     DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([user_id])
+  @@index([created_at(sort: Desc)])
+  @@map("trust_score_history")
+}
+
+model FarmerRating {
+  rating_id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  farmer_id            String   @db.Text
+  buyer_id             String   @db.Text
+  order_id             String   @unique @db.Uuid
+  rating               Int
+  review               String?  @db.Text
+  quality_rating       Int?
+  communication_rating Int?
+  delivery_rating      Int?
+  created_at           DateTime @default(now())
+  updated_at           DateTime @default(now()) @updatedAt
+
+  farmer User @relation("FarmerRatings", fields: [farmer_id], references: [id], onDelete: Cascade)
+  buyer  User @relation("BuyerRatings", fields: [buyer_id], references: [id], onDelete: Cascade)
+
+  @@index([farmer_id])
+  @@index([buyer_id])
+  @@index([order_id])
+  @@map("farmer_ratings")
+}
+
+// ==================== PAYMENT & TRANSACTION TABLES ====================
+
+model Wallet {
+  wallet_id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user_id           String   @unique @db.Text // FIXED: Changed from @db.Uuid to @db.Text to match User.id
+  available_balance BigInt
+  pending_balance   BigInt
+  total_paid_in     BigInt
+  total_paid_out    Int
+  currency          String   @default("NGN") @db.VarChar(3)
+  last_updated      DateTime @default(now())
+  created_at        DateTime @default(now())
+  updated_at        DateTime @default(now()) @updatedAt
+
+  user          User          @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  transactions Transaction[]
+
+  @@index([user_id])
+  @@map("wallets")
+}
+
+model Payment {
+  payment_id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  order_id            String        @db.Uuid
+  buyer_id            String        @db.Text
+  farmer_id           String        @db.Text
+  amount              BigInt
+  squad_reference     String?       @unique @db.VarChar(100)
+  status              PaymentStatus @default(pending)
+  payment_method      String?       @db.VarChar(50)
+  authorization_url   String?       @db.Text
+  metadata            Json?         @db.JsonB
+  paid_at             DateTime?
+  webhook_received_at DateTime?
+  created_at          DateTime      @default(now())
+  updated_at          DateTime      @default(now()) @updatedAt
+
+  buyer  User @relation("BuyerPayments", fields: [buyer_id], references: [id], onDelete: Cascade)
+  farmer User @relation("FarmerPayments", fields: [farmer_id], references: [id], onDelete: Cascade)
+
+  @@index([order_id])
+  @@index([buyer_id])
+  @@index([farmer_id])
+  @@index([squad_reference])
+  @@index([status])
+  @@map("payments")
+}
+
+model Payout {
+  payout_id         String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  farmer_id         String       @db.Text
+  order_id          String       @db.Uuid
+  gross_amount      Int
+  commission_amount Int
+  net_amount        Int
+  commission_rate   Decimal      @db.Decimal(5, 4)
+  squad_reference   String?      @unique @db.VarChar(100)
+  status            PayoutStatus @default(pending)
+  failure_reason    String?      @db.Text
+  processed_at      DateTime?
+  settled_at        DateTime?
+  created_at        DateTime     @default(now())
+  updated_at        DateTime     @default(now()) @updatedAt
+
+  farmer User @relation(fields: [farmer_id], references: [id], onDelete: Cascade)
+
+  @@index([farmer_id])
+  @@index([order_id])
+  @@index([status])
+  @@map("payouts")
+}
+
+model Transaction {
+  transaction_id String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  wallet_id      String            @db.Uuid
+  user_id        String            @db.Text
+  type           TransactionType
+  amount         BigInt
+  balance_before BigInt
+  balance_after  BigInt
+  reference_id   String?           @db.Uuid
+  reference_type String?           @db.VarChar(50)
+  description    String?           @db.Text
+  status         TransactionStatus @default(pending)
+  created_at     DateTime          @default(now())
+
+  wallet Wallet @relation(fields: [wallet_id], references: [wallet_id], onDelete: Cascade)
+  user   User   @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@index([wallet_id])
+  @@index([user_id])
+  @@index([reference_id])
+  @@index([created_at(sort: Desc)])
+  @@map("transactions")
+}
+
+// ==================== ORDER MANAGEMENT TABLES ====================
+
+model Order {
+  order_id             String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  listing_id           String      @db.Uuid
+  farmer_id            String      @db.Text
+  buyer_id             String      @db.Text
+  quantity             Decimal     @db.Decimal(10, 2)
+  unit_price           Int
+  total_amount         Int
+  delivery_method      String      @db.VarChar(50)
+  delivery_address     String?     @db.Text
+  special_instructions String?     @db.Text
+  status               OrderStatus @default(pending_payment)
+  proof_image_url      String?     @db.Text
+  cancelled_by         String?     @db.Text // FIXED: Changed from @db.Uuid to @db.Text to match User.id
+  cancellation_reason  String?     @db.Text
+  completed_at         DateTime?
+  created_at           DateTime    @default(now())
+  updated_at           DateTime    @default(now()) @updatedAt
+
+  listing   Listing @relation(fields: [listing_id], references: [listing_id], onDelete: Cascade)
+  farmer    User    @relation("FarmerOrders", fields: [farmer_id], references: [id], onDelete: Cascade)
+  buyer     User    @relation("BuyerOrders", fields: [buyer_id], references: [id], onDelete: Cascade)
+  canceller User?   @relation("CancelledOrders", fields: [cancelled_by], references: [id])
+
+  @@index([listing_id])
+  @@index([farmer_id])
+  @@index([buyer_id])
+  @@index([status])
+  @@index([created_at(sort: Desc)])
+  @@map("orders")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          String?
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  sessions      Session[]
+  accounts      Account[]
+
+  trust_score         Int       @default(0) @map("trust_score")
+  location_state      String?   @db.VarChar(50)
+  location_lga        String?   @db.VarChar(50)
+  location_village    String?   @db.VarChar(100)
+  latitude            Decimal?  @db.Decimal(10, 8)
+  longitude           Decimal?  @db.Decimal(11, 8)
+  preferred_language  String?   @default("English") @db.VarChar(20)
+  bank_name           String?   @db.VarChar(50)
+  bank_account_number String?   @db.VarChar(20)
+  bank_account_name   String?   @db.VarChar(100)
+  liveness_verified   Boolean   @default(false)
+  last_active_at      DateTime?
+
+  // Relations
+  scans               Scan[]
+  farmer_crops        FarmerCrop[]
+  input_verifications InputVerification[]
+  liveness_checks     LivenessCheck[]
+  listings            Listing[]
+  trust_score_history TrustScoreHistory[]
+  listing_views       ListingView[]
+  sent_ratings        FarmerRating[]      @relation("BuyerRatings")
+  received_ratings    FarmerRating[]      @relation("FarmerRatings")
+  wallet              Wallet?
+  payments_as_buyer   Payment[]           @relation("BuyerPayments")
+  payments_as_farmer  Payment[]           @relation("FarmerPayments")
+  payouts             Payout[]
+  transactions        Transaction[]
+  orders_as_farmer    Order[]             @relation("FarmerOrders")
+  orders_as_buyer     Order[]             @relation("BuyerOrders")
+  cancelled_orders    Order[]             @relation("CancelledOrders")
+
+  phoneNumber         String?
+  phoneNumberVerified Boolean?
+  farmName            String?
+  location            String?
+
+  @@unique([email])
+  @@unique([phoneNumber])
+  @@map("user")
+}

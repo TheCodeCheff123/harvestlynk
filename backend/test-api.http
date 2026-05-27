@@ -1,0 +1,23 @@
+### 1. Request an OTP
+# @name requestOtp
+POST http://localhost:3000/auth/request-otp
+Content-Type: application/json
+
+{
+    "phoneNumber": "+2348000000000",
+    "purpose": "login"
+}
+
+### 2. Verify OTP (Replace the code with what you see in the terminal)
+# @name verifyOtp
+POST http://localhost:3000/auth/verify-otp
+Content-Type: application/json
+
+{
+    "phoneNumber": "+2348000000000",
+    "code": "611134"
+}
+
+### 3. Get My Profile (Replace YOUR_TOKEN_HERE)
+GET http://localhost:3000/users/me
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZTRiYjc2Yy0yZTgzLTQ3YjEtOWY4NC04OTZhOTUxYzJkZTciLCJ1c2VyVHlwZSI6ImZhcm1lciIsImZ1bGxOYW1lIjoiIiwiaWF0IjoxNzc4NzkyNDc0LCJleHAiOjE3Nzg3OTMzNzR9.UuCs0VCejb2mI6qpQuLgUOoK6FQaudTcWJTG2SN2Mjw

@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: farmapp-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: caleb_admin
+      POSTGRES_PASSWORD: Farm_password_1711
+      POSTGRES_DB: farmdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: farm-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: talk2bendondon@gmail.com
+      PGADMIN_DEFAULT_PASSWORD: admin1711
+    ports:
+      - "8080:80"
+    depends_on:
+      - postgres
+
+volumes:
+  db_data:
