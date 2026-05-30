@@ -6,10 +6,12 @@ import { hashPassword, comparePassword } from "../utils/password.js";
 import { signToken, verifyToken } from "../utils/jwt.js";
 import { signupSchema, loginSchema } from "../validators/auth.validator.js";
 
+const isProduction = process.env["NODE_ENV"] === "production";
+
 const COOKIE_OPTS = {
   httpOnly: true,
-  sameSite: "lax" as const,
-  secure: process.env["NODE_ENV"] === "production",
+  sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
+  secure: isProduction,
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 

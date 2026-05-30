@@ -113,11 +113,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signup = useCallback(async (data: SignupData): Promise<User> => {
-    // Signup sets the session cookie but returns no body — fetch session afterwards
     await usersApi.signup(data);
-    const session = await authApi.getSession();
-    if (!session?.user?.id) throw new Error("Signup succeeded but no session returned.");
-    const fullUser = await usersApi.getUser(session.user.id);
+    const fullUser = await usersApi.getMe();
     setUser(fullUser);
     localStorage.setItem(CACHE_KEY, JSON.stringify(fullUser));
     if (fullUser.wallet) setWallet(fullUser.wallet);
