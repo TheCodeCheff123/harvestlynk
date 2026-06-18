@@ -9,14 +9,6 @@ import { safeUser } from "./auth.controller.js";
 import type { AuthRequest } from "../middleware/auth.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
 
-const isProduction = process.env["NODE_ENV"] === "production";
-
-const COOKIE_OPTS = {
-  httpOnly: true,
-  sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
-  secure: isProduction,
-  maxAge: 7 * 24 * 60 * 60 * 1000,
-};
 
 // Dashboard-compatible signup: fullName + farmName
 const dashboardSignupSchema = z.object({
@@ -84,8 +76,7 @@ export async function dashboardSignup(req: Request, res: Response) {
   }).onConflictDoNothing();
 
   const token = await signToken({ userId: newUser.id, email: newUser.email, role: newUser.role });
-  res.cookie("jwt", token, COOKIE_OPTS);
-  res.status(201).json(safeUser(newUser));
+  res.status(201).json({ token, user: safeUser(newUser) });
 }
 
 export async function getUser(req: Request, res: Response) {

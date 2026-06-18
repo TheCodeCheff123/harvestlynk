@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { getNotifications, markAsRead, markAllAsRead, getUnreadCount } from "../controllers/notifications.controller.js";
-import { authenticate } from "../middleware/auth.js";
+import { getNotifications, markAsRead, markAllAsRead, getUnreadCount } from "../../controllers/notifications.controller.js";
+import { authenticate } from "../../middleware/auth.js";
 
 const router: IRouter = Router();
 

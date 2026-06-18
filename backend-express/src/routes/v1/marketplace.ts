@@ -8,8 +8,8 @@ import {
   getMyListings,
   deleteListing,
   uploadImage,
-} from "../controllers/marketplace.controller.js";
-import { authenticate, requireRole } from "../middleware/auth.js";
+} from "../../controllers/marketplace.controller.js";
+import { authenticate, requireRole } from "../../middleware/auth.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });

@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
-import { createOrder, getMyBuyerOrders, getMyFarmerOrders, confirmDelivery, updateOrderStatus, cancelOrder } from "../controllers/orders.controller.js";
-import { rateOrder } from "../controllers/ratings.controller.js";
-import { authenticate } from "../middleware/auth.js";
+import { createOrder, getMyBuyerOrders, getMyFarmerOrders, confirmDelivery, updateOrderStatus, cancelOrder } from "../../controllers/orders.controller.js";
+import { rateOrder } from "../../controllers/ratings.controller.js";
+import { authenticate } from "../../middleware/auth.js";
 
 const router: IRouter = Router();
 

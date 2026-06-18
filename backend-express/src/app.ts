@@ -1,15 +1,11 @@
 import express, { type Express, type ErrorRequestHandler } from "express";
-import cookieParser from "cookie-parser";
 import morgan from "morgan";
+import { serve as swaggerServe, setup as swaggerSetup } from "swagger-ui-express";
 import { corsMiddleware } from "./middleware/cors.js";
 import { generalLimiter } from "./middleware/rateLimiter.js";
-import authRoutes from "./routes/auth.js";
-import usersRoutes from "./routes/users.js";
-import walletRoutes from "./routes/wallet.js";
-import marketplaceRoutes from "./routes/marketplace.js";
-import ordersRoutes from "./routes/orders.js";
-import notificationsRoutes from "./routes/notifications.js";
-import scansRoutes from "./routes/scans.js";
+import { swaggerApiKeyGuard } from "./middleware/swaggerAuth.js";
+import v1 from "./routes/v1/index.js";
+import openapiSpec from "./docs/openapi.js";
 
 const isTest = process.env["NODE_ENV"] === "test";
 const app: Express = express();
@@ -19,7 +15,6 @@ if (!isTest) {
 }
 
 app.use(corsMiddleware);
-app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(generalLimiter);
@@ -28,13 +23,9 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-app.use("/api/auth", authRoutes);
-app.use("/users", usersRoutes);
-app.use("/wallet", walletRoutes);
-app.use("/marketplace", marketplaceRoutes);
-app.use("/orders", ordersRoutes);
-app.use("/notifications", notificationsRoutes);
-app.use("/scans", scansRoutes);
+app.use("/api/docs", swaggerApiKeyGuard, ...swaggerServe, swaggerSetup(openapiSpec));
+
+app.use("/api/v1", v1);
 
 const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   console.error("[error]", err?.message ?? err);

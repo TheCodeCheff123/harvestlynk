@@ -6,14 +6,6 @@ import { hashPassword, comparePassword } from "../utils/password.js";
 import { signToken, verifyToken } from "../utils/jwt.js";
 import { signupSchema, loginSchema } from "../validators/auth.validator.js";
 
-const isProduction = process.env["NODE_ENV"] === "production";
-
-const COOKIE_OPTS = {
-  httpOnly: true,
-  sameSite: (isProduction ? "none" : "lax") as "none" | "lax",
-  secure: isProduction,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-};
 
 export const safeUser = (user: typeof users.$inferSelect) => ({
   id: user.id,
@@ -70,7 +62,6 @@ export async function signup(req: Request, res: Response) {
   if (!newUser) { res.status(500).json({ error: "Failed to create account" }); return; }
 
   const token = await signToken({ userId: newUser.id, email: newUser.email, role: newUser.role });
-  res.cookie("jwt", token, COOKIE_OPTS);
   res.status(201).json({ token, user: safeUser(newUser) });
 }
 
@@ -93,19 +84,16 @@ export async function login(req: Request, res: Response) {
   await db.update(users).set({ lastActiveAt: new Date() }).where(eq(users.id, user.id));
 
   const token = await signToken({ userId: user.id, email: user.email, role: user.role });
-  res.cookie("jwt", token, COOKIE_OPTS);
   res.json({ token, user: safeUser(user) });
 }
 
 export async function logout(_req: Request, res: Response) {
-  res.clearCookie("jwt");
   res.json({ message: "Logged out" });
 }
 
 export async function getSession(req: Request, res: Response) {
-  const cookieToken = (req as Request & { cookies: Record<string, string> }).cookies?.["jwt"];
   const header = req.headers.authorization;
-  const token = cookieToken ?? (header?.startsWith("Bearer ") ? header.slice(7) : null);
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
 
   if (!token) { res.json({ user: null, session: null }); return; }
 

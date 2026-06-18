@@ -10,11 +10,8 @@ export interface AuthRequest extends Request {
 }
 
 export async function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
-  // Cookie takes priority (dashboard uses credentials: "include")
-  // Bearer token also accepted (for API clients / tests)
-  const cookieToken = (req as Request & { cookies: Record<string, string> }).cookies?.["jwt"];
   const header = req.headers.authorization;
-  const token = cookieToken ?? (header?.startsWith("Bearer ") ? header.slice(7) : null);
+  const token = header?.startsWith("Bearer ") ? header.slice(7) : null;
 
   if (!token) {
     res.status(401).json({ error: "Not authenticated" });

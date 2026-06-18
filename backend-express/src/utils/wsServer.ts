@@ -4,22 +4,12 @@ import { verifyToken } from "./jwt.js";
 
 const clients = new Map<string, Set<WebSocket>>();
 
-function parseCookies(header: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const part of header.split(";")) {
-    const [k, ...v] = part.trim().split("=");
-    if (k?.trim()) out[k.trim()] = v.join("=").trim();
-  }
-  return out;
-}
-
 export function initWsServer(server: Server) {
   const wss = new WebSocketServer({ server, path: "/ws" });
 
   wss.on("connection", async (ws, req) => {
-    const cookies = parseCookies(req.headers["cookie"] ?? "");
     const url = new URL(req.url!, "http://localhost");
-    const token = cookies["jwt"] ?? url.searchParams.get("token");
+    const token = url.searchParams.get("token");
 
     if (!token) { ws.close(1008, "Unauthorized"); return; }
 

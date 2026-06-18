@@ -1,10 +1,9 @@
 import { Router, type IRouter } from "express";
-import { signup, login, logout, getSession } from "../controllers/auth.controller.js";
-import { authLimiter } from "../middleware/rateLimiter.js";
+import { signup, login, logout, getSession } from "../../controllers/auth.controller.js";
+import { authLimiter } from "../../middleware/rateLimiter.js";
 
 const router: IRouter = Router();
 
-// Our own paths
 router.post("/signup", authLimiter, signup);
 router.post("/login", authLimiter, login);
 

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { getBanks, getBalance, getTransactions, verifyBank, withdraw } from "../controllers/wallet.controller.js";
-import { authenticate } from "../middleware/auth.js";
+import { getBanks, getBalance, getTransactions, verifyBank, withdraw } from "../../controllers/wallet.controller.js";
+import { authenticate } from "../../middleware/auth.js";
 
 const router: IRouter = Router();
 

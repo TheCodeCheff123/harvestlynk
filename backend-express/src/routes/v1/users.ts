@@ -11,10 +11,10 @@ import {
   uploadOwnershipDocument,
   completeOAuthProfile,
   livenessCheck,
-} from "../controllers/users.controller.js";
-import { authenticate } from "../middleware/auth.js";
-import { authLimiter } from "../middleware/rateLimiter.js";
-import { getFarmerRatings } from "../controllers/ratings.controller.js";
+} from "../../controllers/users.controller.js";
+import { authenticate } from "../../middleware/auth.js";
+import { authLimiter } from "../../middleware/rateLimiter.js";
+import { getFarmerRatings } from "../../controllers/ratings.controller.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
