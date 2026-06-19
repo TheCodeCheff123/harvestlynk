@@ -104,9 +104,10 @@ export interface Transaction {
 
 export interface SignupData {
   role: "farmer" | "buyer";
-  fullName: string;
+  firstName: string;
+  lastName: string;
   email: string;
-  farmName: string;
+  farmName?: string;
   location: string;
   phoneNumber: string;
   password: string;
@@ -313,15 +314,12 @@ async function apiFetch<T>(path: string, init?: RequestInit, isRetry = false): P
 // ─── Auth API ─────────────────────────────────────────────────────────────────
 
 export const authApi = {
-  signup: (data: SignupData) => {
-    const parts = data.fullName.trim().split(/\s+/);
-    const firstName = parts[0] ?? "";
-    const lastName = parts.slice(1).join(" ") || firstName;
-    return apiFetch<{ message: string }>("/api/v1/auth/signup", {
+  signup: (data: SignupData) =>
+    apiFetch<{ message: string }>("/api/v1/auth/signup", {
       method: "POST",
       body: JSON.stringify({
-        firstName,
-        lastName,
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
         password: data.password,
         confirmPassword: data.password,
@@ -329,8 +327,7 @@ export const authApi = {
         location: data.location || undefined,
         role: data.role,
       }),
-    });
-  },
+    }),
 
   login: (email: string, password: string) =>
     apiFetch<{ accessToken: string; refreshToken: string; user: { id: string; email: string; name: string; role: "farmer" | "buyer" } }>(

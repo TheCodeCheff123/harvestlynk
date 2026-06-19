@@ -8,7 +8,8 @@ export default function FarmerSignup() {
   const { signup } = useAuth();
   const router = useRouter();
 
-  const [fullName, setFullName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
   const [farmName, setFarmName] = useState("");
   const [location, setLocation] = useState("");
@@ -21,7 +22,7 @@ export default function FarmerSignup() {
 
   async function handleCreate() {
     setFormError("");
-    if (!fullName || !email || !farmName || !location || !phoneNumber || !password) {
+    if (!firstName || !lastName || !email || !farmName || !location || !phoneNumber || !password) {
       setFormError("Please fill in all fields.");
       return;
     }
@@ -40,7 +41,7 @@ export default function FarmerSignup() {
 
     setLoading(true);
     try {
-      await signup({ role: "farmer", fullName, email, farmName, location, phoneNumber, password });
+      await signup({ role: "farmer", firstName, lastName, email, farmName, location, phoneNumber, password });
       router.push(`/verify-email-sent?email=${encodeURIComponent(email)}`);
     } catch (err) {
       setFormError(err instanceof Error ? err.message : "Signup failed. Please try again.");
@@ -67,17 +68,32 @@ export default function FarmerSignup() {
             <p className="text-gray-400 text-sm mb-7">Step 1: Basic Farm Information</p>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-800 mb-1.5">Full Name</label>
-                <div className="relative">
-                  <i className="ri-user-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Enter your full name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors"
-                  />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">First Name</label>
+                  <div className="relative">
+                    <i className="ri-user-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="e.g. John"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 mb-1.5">Last Name</label>
+                  <div className="relative">
+                    <i className="ri-user-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="e.g. Doe"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors"
+                    />
+                  </div>
                 </div>
               </div>
 

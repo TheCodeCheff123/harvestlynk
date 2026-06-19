@@ -152,7 +152,7 @@ export default function Login() {
 
           <div className="border-t border-gray-100 mt-6 pt-5 text-center">
             <button
-              onClick={() => setRole(role === "buyer" ? "farmer" : "buyer")}
+              onClick={() => router.replace(`/login?role=${role === "buyer" ? "farmer" : "buyer"}`)}
               className="text-sm text-[#0D631B] font-semibold hover:underline"
             >
               Switch to {role === "buyer" ? "Farmer" : "Buyer"} Login
