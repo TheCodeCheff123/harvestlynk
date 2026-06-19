@@ -3,23 +3,9 @@ import { eq, count, sum, and } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { users, wallets, listings, orders, livenessChecks } from "../db/schema.js";
-import { hashPassword } from "../utils/password.js";
-import { signToken } from "../utils/jwt.js";
 import { safeUser } from "./auth.controller.js";
 import type { AuthRequest } from "../middleware/auth.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
-
-
-// Dashboard-compatible signup: fullName + farmName
-const dashboardSignupSchema = z.object({
-  role: z.enum(["farmer", "buyer"]),
-  fullName: z.string().min(2).trim(),
-  email: z.email().toLowerCase().trim(),
-  farmName: z.string().optional(),
-  location: z.string().optional(),
-  phoneNumber: z.string().optional(),
-  password: z.string().min(8),
-});
 
 const updateProfileSchema = z.object({
   fullName: z.string().min(2).trim().optional(),
@@ -34,50 +20,6 @@ const updateProfileSchema = z.object({
   farmName: z.string().optional(),
 });
 
-export async function dashboardSignup(req: Request, res: Response) {
-  const parsed = dashboardSignupSchema.safeParse(req.body);
-  if (!parsed.success) {
-    res.status(400).json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors });
-    return;
-  }
-
-  const { role, fullName, email, farmName, location, phoneNumber, password } = parsed.data;
-  const [firstName, ...rest] = fullName.trim().split(" ");
-  const lastName = rest.join(" ") || "-";
-
-  const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-  if (existing) {
-    res.status(409).json({ error: "An account with this email already exists" });
-    return;
-  }
-
-  const passwordHash = await hashPassword(password);
-  const [newUser] = await db.insert(users).values({
-    firstName: firstName ?? fullName,
-    lastName,
-    email,
-    passwordHash,
-    role,
-    farmName,
-    location,
-    phoneNumber,
-    acceptedTerms: true,
-  }).returning();
-
-  if (!newUser) { res.status(500).json({ error: "Failed to create account" }); return; }
-
-  // Auto-create wallet
-  await db.insert(wallets).values({
-    userId: newUser.id,
-    availableBalance: 0,
-    pendingBalance: 0,
-    totalPaidIn: 0,
-    totalPaidOut: 0,
-  }).onConflictDoNothing();
-
-  const token = await signToken({ userId: newUser.id, email: newUser.email, role: newUser.role });
-  res.status(201).json({ token, user: safeUser(newUser) });
-}
 
 export async function getUser(req: Request, res: Response) {
   const id = String(req.params["id"]);

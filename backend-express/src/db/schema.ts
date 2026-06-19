@@ -501,6 +501,27 @@ export const notifications = pgTable(
   ]
 );
 
+// ==================== AUTH TOKENS ====================
+
+export const refreshTokens = pgTable(
+  "refresh_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    expiresAt: timestamp("expires_at").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("refresh_tokens_user_id_idx").on(t.userId),
+    index("refresh_tokens_token_hash_idx").on(t.tokenHash),
+  ]
+);
+
 // ==================== TYPES ====================
 
 export type User = typeof users.$inferSelect;

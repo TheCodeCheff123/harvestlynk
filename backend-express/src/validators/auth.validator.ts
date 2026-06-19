@@ -17,7 +17,6 @@ export const signupSchema = z
       .regex(/[0-9]/, "Password must contain at least one number"),
     confirmPassword: z.string(),
     role: z.enum(["farmer", "buyer"], { error: "Role must be farmer or buyer" }),
-    acceptTerms: z.literal(true, { error: "You must accept the terms and conditions" }),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",

@@ -1,7 +1,6 @@
 import { Router, type IRouter } from "express";
 import multer from "multer";
 import {
-  dashboardSignup,
   getUser,
   getMe,
   getStats,
@@ -13,13 +12,11 @@ import {
   livenessCheck,
 } from "../../controllers/users.controller.js";
 import { authenticate } from "../../middleware/auth.js";
-import { authLimiter } from "../../middleware/rateLimiter.js";
 import { getFarmerRatings } from "../../controllers/ratings.controller.js";
 
 const router: IRouter = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
-router.post("/signup", authLimiter, dashboardSignup);
 router.get("/me", authenticate, getMe);
 router.get("/me/stats", authenticate, getStats);
 router.patch("/", authenticate, updateUser);

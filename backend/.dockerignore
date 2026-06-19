@@ -1,7 +1,0 @@
-node_modules
-dist
-generated
-.env
-.env.*
-*.log
-coverage

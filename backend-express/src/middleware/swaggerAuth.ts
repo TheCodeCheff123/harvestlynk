@@ -7,6 +7,11 @@ export function swaggerApiKeyGuard(req: Request, res: Response, next: NextFuncti
     return;
   }
 
+  // Only guard the docs page itself — static assets (CSS, JS, images) must pass through freely
+  // so the browser can load them after the page is authenticated
+  const isRoot = req.path === "/" || req.path === "";
+  if (!isRoot) { next(); return; }
+
   const provided =
     (req.query["apiKey"] as string | undefined) ??
     req.headers["x-docs-api-key"];

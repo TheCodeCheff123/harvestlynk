@@ -1,0 +1,3581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HarvestLynk — Farm to Table, Digitized</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { font-family: 'Inter', system-ui, sans-serif; }
+
+    /* Smooth scroll */
+    html { scroll-behavior: smooth; }
+
+    /* Page visibility system */
+    /* !important + :not(.active) ensures this always wins over Tailwind's
+       own display utilities (flex, grid, etc.) on the same element,
+       regardless of stylesheet load order. */
+    .page:not(.active) { display: none !important; }
+
+    /* Nav scroll effect */
+    #main-nav { transition: background 0.3s, box-shadow 0.3s; }
+    #main-nav.scrolled { background: rgba(255,255,255,0.98); box-shadow: 0 1px 20px rgba(0,0,0,0.08); }
+    #main-nav.scrolled .nav-link { color: #374151; }
+    #main-nav.scrolled .nav-logo { color: #0D631B; }
+    #main-nav.scrolled #mobile-menu-btn { color: #374151; }
+
+    /* Hero image overlay */
+    .hero-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(5,35,10,0.82) 0%, rgba(10,79,21,0.55) 60%, rgba(0,0,0,0.3) 100%);
+    }
+
+    /* Feature card hover */
+    .feature-card { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+    .feature-card:hover { transform: translateY(-4px); box-shadow: 0 12px 32px rgba(13,99,27,0.12); }
+
+    /* Step connector line */
+    .step-line { background: linear-gradient(90deg, #0D631B, #e8a000); }
+
+    /* Animated gradient badge */
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+    .badge-shimmer {
+      background: linear-gradient(90deg, #e8f5e9, #bbf7d0, #e8f5e9);
+      background-size: 200% auto;
+      animation: shimmer 3s linear infinite;
+    }
+
+    /* Stat counter */
+    .stat-card { transition: transform 0.2s; }
+    .stat-card:hover { transform: scale(1.03); }
+
+    /* Testimonial card */
+    .testimonial-card { transition: transform 0.2s, box-shadow 0.2s; }
+    .testimonial-card:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+
+    /* Mobile nav menu */
+    #mobile-nav { transition: max-height 0.3s ease, opacity 0.3s; max-height: 0; opacity: 0; overflow: hidden; }
+    #mobile-nav.open { max-height: 400px; opacity: 1; }
+
+    /* CTA glow */
+    .btn-glow { box-shadow: 0 0 0 0 rgba(13,99,27,0.4); transition: box-shadow 0.3s; }
+    .btn-glow:hover { box-shadow: 0 0 0 8px rgba(13,99,27,0); }
+
+    /* How it works tab */
+    .how-tab { transition: all 0.2s; }
+    .how-tab.active { background: #0D631B; color: white; }
+    .how-tab-content:not(.active) { display: none !important; }
+
+    /* Fade in animation */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up { animation: fadeUp 0.6s ease forwards; }
+    .fade-up-delay-1 { animation: fadeUp 0.6s 0.1s ease both; }
+    .fade-up-delay-2 { animation: fadeUp 0.6s 0.2s ease both; }
+    .fade-up-delay-3 { animation: fadeUp 0.6s 0.3s ease both; }
+
+    /* Toast */
+    #toast.show { transform: translateY(0); }
+
+    /* Spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin { animation: spin 1s linear infinite; display: inline-block; }
+
+    /* Role select cards */
+    .role-card { transition: all 0.25s ease; }
+
+    /* Auth split layout image */
+    .auth-image { mix-blend-mode: multiply; }
+  </style>
+</head>
+<body class="bg-white text-gray-900">
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-6 right-6 left-6 sm:left-auto z-[9999] translate-y-32 transition-transform duration-300"></div>
+
+<div id="pg-landing" class="page active">
+
+<!-- ═══════════════════════════════════════════════════════
+     NAVIGATION
+════════════════════════════════════════════════════════ -->
+<nav id="main-nav" class="fixed top-0 left-0 right-0 z-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex items-center justify-between h-16 md:h-18">
+
+      <!-- Logo -->
+      <a href="#" class="nav-logo flex items-center gap-2 text-white font-bold text-xl">
+        <div class="w-8 h-8 bg-[#0D631B] rounded-lg flex items-center justify-center border-2 border-white/30">
+          <i class="ri-plant-line text-white text-sm"></i>
+        </div>
+        HarvestLynk
+      </a>
+
+      <!-- Desktop Nav Links -->
+      <div class="hidden md:flex items-center gap-8">
+        <a href="#features" class="nav-link text-white/90 text-sm font-medium hover:text-white transition-colors">Features</a>
+        <a href="#how-it-works" class="nav-link text-white/90 text-sm font-medium hover:text-white transition-colors">How It Works</a>
+        <a href="#testimonials" class="nav-link text-white/90 text-sm font-medium hover:text-white transition-colors">Testimonials</a>
+      </div>
+
+      <!-- Desktop CTAs -->
+      <div class="hidden md:flex items-center gap-3">
+        <button onclick="goToLogin()" class="nav-link text-white/90 text-sm font-semibold hover:text-white transition-colors px-4 py-2">
+          Log In
+        </button>
+        <button onclick="goToRoleSelect()" class="px-5 py-2.5 bg-[#e8a000] hover:bg-[#d09000] text-white text-sm font-semibold rounded-xl transition-colors">
+          Get Started
+        </button>
+      </div>
+
+      <!-- Mobile Hamburger -->
+      <button id="mobile-menu-btn" onclick="toggleMobileNav()" class="md:hidden text-white p-2">
+        <i class="ri-menu-line text-xl"></i>
+      </button>
+    </div>
+
+    <!-- Mobile Nav -->
+    <div id="mobile-nav" class="md:hidden bg-white/95 backdrop-blur rounded-2xl mb-3 px-4 py-2">
+      <a href="#features" onclick="toggleMobileNav()" class="block py-3 text-gray-700 text-sm font-medium border-b border-gray-100">Features</a>
+      <a href="#how-it-works" onclick="toggleMobileNav()" class="block py-3 text-gray-700 text-sm font-medium border-b border-gray-100">How It Works</a>
+      <a href="#testimonials" onclick="toggleMobileNav()" class="block py-3 text-gray-700 text-sm font-medium border-b border-gray-100">Testimonials</a>
+      <div class="flex gap-2 py-3">
+        <button onclick="goToLogin()" class="flex-1 py-2.5 border border-[#0D631B] text-[#0D631B] text-sm font-semibold rounded-xl">Log In</button>
+        <button onclick="goToRoleSelect()" class="flex-1 py-2.5 bg-[#0D631B] text-white text-sm font-semibold rounded-xl">Get Started</button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     HERO SECTION
+════════════════════════════════════════════════════════ -->
+<section class="hero-bg relative min-h-screen flex items-center overflow-hidden">
+  <!-- Background Image -->
+  <img
+    src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=1600&q=80"
+    alt="Farm aerial view"
+    class="absolute inset-0 w-full h-full object-cover"
+    onerror="this.style.background='#0a4f15'; this.style.opacity='0.3';"
+  />
+
+  <!-- Content -->
+  <div class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 md:py-40">
+    <div class="max-w-2xl">
+      <!-- Badge -->
+      <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm border border-white/20 text-white text-xs font-semibold px-4 py-2 rounded-full mb-6 fade-up">
+        <span class="w-2 h-2 bg-[#e8a000] rounded-full"></span>
+        Nigeria's #1 Digital Agri-Marketplace
+      </div>
+
+      <!-- Headline -->
+      <h1 class="text-4xl sm:text-5xl md:text-6xl font-black text-white leading-tight mb-6 fade-up-delay-1">
+        Fresh From
+        <span class="block text-[#e8a000]">Nigerian Farms</span>
+        to Your Table
+      </h1>
+
+      <!-- Subtext -->
+      <p class="text-white/80 text-lg md:text-xl leading-relaxed mb-10 max-w-lg fade-up-delay-2">
+        HarvestLynk connects verified farmers with buyers through escrow-backed payments, AI verification, and real-time order tracking.
+      </p>
+
+      <!-- CTAs -->
+      <div class="flex flex-col sm:flex-row gap-4 fade-up-delay-3">
+        <button
+          onclick="goToSignupFarmer()"
+          class="btn-glow flex items-center justify-center gap-2 px-8 py-4 bg-[#0D631B] hover:bg-[#0a4f15] text-white font-bold text-base rounded-2xl transition-all"
+        >
+          <i class="ri-plant-line"></i>
+          Join as Farmer
+        </button>
+        <button
+          onclick="goToSignupBuyer()"
+          class="flex items-center justify-center gap-2 px-8 py-4 bg-white/15 hover:bg-white/25 backdrop-blur-sm border-2 border-white/40 text-white font-bold text-base rounded-2xl transition-all"
+        >
+          <i class="ri-store-2-line"></i>
+          Browse Produce
+        </button>
+      </div>
+
+      <!-- Trust Badges -->
+      <div class="flex flex-wrap gap-4 mt-10">
+        <div class="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl">
+          <i class="ri-shield-check-line text-[#e8a000] text-lg"></i>
+          <span class="text-white text-xs font-medium">Escrow Protection</span>
+        </div>
+        <div class="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl">
+          <i class="ri-robot-line text-[#e8a000] text-lg"></i>
+          <span class="text-white text-xs font-medium">AI Verification</span>
+        </div>
+        <div class="flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-xl">
+          <i class="ri-map-pin-2-line text-[#e8a000] text-lg"></i>
+          <span class="text-white text-xs font-medium">Nationwide Coverage</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scroll hint -->
+  <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 text-white/50">
+    <span class="text-xs font-medium tracking-widest uppercase">Scroll</span>
+    <i class="ri-arrow-down-line text-lg animate-bounce"></i>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     STATS SECTION
+════════════════════════════════════════════════════════ -->
+<section class="bg-[#0D631B] py-12">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+      <div class="stat-card text-center">
+        <p class="text-3xl md:text-4xl font-black text-white mb-1">500+</p>
+        <p class="text-green-200 text-sm">Verified Farmers</p>
+      </div>
+      <div class="stat-card text-center">
+        <p class="text-3xl md:text-4xl font-black text-white mb-1">12k+</p>
+        <p class="text-green-200 text-sm">Successful Orders</p>
+      </div>
+      <div class="stat-card text-center">
+        <p class="text-3xl md:text-4xl font-black text-white mb-1">₦2B+</p>
+        <p class="text-green-200 text-sm">Escrow Protected</p>
+      </div>
+      <div class="stat-card text-center">
+        <p class="text-3xl md:text-4xl font-black text-white mb-1">36</p>
+        <p class="text-green-200 text-sm">States Covered</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FEATURES SECTION
+════════════════════════════════════════════════════════ -->
+<section id="features" class="py-20 md:py-28 bg-white">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center max-w-2xl mx-auto mb-16">
+      <span class="inline-block text-[#0D631B] text-sm font-bold tracking-wider uppercase mb-3 bg-[#e8f5e9] px-4 py-1.5 rounded-full">
+        Why HarvestLynk
+      </span>
+      <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-4">
+        Everything You Need to Trade <span class="text-[#0D631B]">Safely</span>
+      </h2>
+      <p class="text-gray-500 text-lg">
+        From verified identities to AI-powered tools — we've built the trust layer Nigerian agriculture deserves.
+      </p>
+    </div>
+
+    <!-- Feature Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <!-- Feature 1 -->
+      <div class="feature-card bg-white border border-gray-100 rounded-2xl p-7 shadow-sm">
+        <div class="w-14 h-14 bg-[#e8f5e9] rounded-2xl flex items-center justify-center mb-5">
+          <i class="ri-shield-check-line text-[#0D631B] text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Escrow-Backed Payments</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          Buyer funds are held securely in escrow until delivery is confirmed. Farmers get paid, buyers get their produce. Zero risk.
+        </p>
+        <div class="mt-4 flex items-center gap-1 text-[#0D631B] text-xs font-semibold">
+          <i class="ri-lock-line"></i> Funds released on confirmation
+        </div>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="feature-card bg-white border border-gray-100 rounded-2xl p-7 shadow-sm">
+        <div class="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center mb-5">
+          <i class="ri-robot-line text-[#e8a000] text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">AI Farmer Verification</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          NIN document scan + AI liveness check to verify every farmer's identity. Buyers can transact knowing who they're buying from.
+        </p>
+        <div class="mt-4 flex items-center gap-1 text-[#e8a000] text-xs font-semibold">
+          <i class="ri-checkbox-circle-line"></i> Verified badge on every profile
+        </div>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="feature-card bg-white border border-gray-100 rounded-2xl p-7 shadow-sm">
+        <div class="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center mb-5">
+          <i class="ri-medicine-bottle-line text-blue-600 text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">AI Crop Doctor</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          Upload a photo of your crop and our AI identifies diseases, suggests treatments, and helps you protect your harvest before losses mount.
+        </p>
+        <div class="mt-4 flex items-center gap-1 text-blue-600 text-xs font-semibold">
+          <i class="ri-camera-line"></i> Instant disease diagnosis
+        </div>
+      </div>
+
+      <!-- Feature 4 -->
+      <div class="feature-card bg-white border border-gray-100 rounded-2xl p-7 shadow-sm">
+        <div class="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center mb-5">
+          <i class="ri-notification-3-line text-purple-600 text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Real-Time Notifications</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          WebSocket-powered alerts for every order update, payment event, and delivery confirmation — in real time, on any device.
+        </p>
+        <div class="mt-4 flex items-center gap-1 text-purple-600 text-xs font-semibold">
+          <i class="ri-flashlight-line"></i> Instant push updates
+        </div>
+      </div>
+
+      <!-- Feature 5 -->
+      <div class="feature-card bg-white border border-gray-100 rounded-2xl p-7 shadow-sm">
+        <div class="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center mb-5">
+          <i class="ri-store-2-line text-orange-500 text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Smart Marketplace</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          Paginated listings with rich images, category filters, and location tags. Buyers discover fresh produce from farms across Nigeria.
+        </p>
+        <div class="mt-4 flex items-center gap-1 text-orange-500 text-xs font-semibold">
+          <i class="ri-search-line"></i> Search, filter, order
+        </div>
+      </div>
+
+      <!-- Feature 6 -->
+      <div class="feature-card bg-[#0D631B] rounded-2xl p-7 text-white">
+        <div class="w-14 h-14 bg-white/15 rounded-2xl flex items-center justify-center mb-5">
+          <i class="ri-wallet-3-line text-white text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold mb-2">Integrated Wallet</h3>
+        <p class="text-white/80 text-sm leading-relaxed">
+          Track earnings, pending escrow, and withdraw directly to any Nigerian bank account. Financial clarity for every transaction.
+        </p>
+        <div class="mt-4 flex items-center gap-1 text-[#e8a000] text-xs font-semibold">
+          <i class="ri-bank-line"></i> All Nigerian banks supported
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     HOW IT WORKS SECTION
+════════════════════════════════════════════════════════ -->
+<section id="how-it-works" class="py-20 md:py-28 bg-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center max-w-2xl mx-auto mb-12">
+      <span class="inline-block text-[#0D631B] text-sm font-bold tracking-wider uppercase mb-3 bg-[#e8f5e9] px-4 py-1.5 rounded-full">
+        Simple Process
+      </span>
+      <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-4">
+        How It Works
+      </h2>
+      <p class="text-gray-500 text-lg">
+        Getting started takes less than 5 minutes. Choose your path.
+      </p>
+    </div>
+
+    <!-- Tab Toggle -->
+    <div class="flex justify-center mb-12">
+      <div class="flex bg-white border border-gray-200 rounded-2xl p-1.5 gap-1">
+        <button onclick="switchHowTab('farmer')" id="tab-farmer" class="how-tab active px-8 py-3 rounded-xl text-sm font-bold transition-all">
+          <i class="ri-plant-line mr-2"></i>For Farmers
+        </button>
+        <button onclick="switchHowTab('buyer')" id="tab-buyer" class="how-tab px-8 py-3 rounded-xl text-sm font-bold text-gray-600 transition-all">
+          <i class="ri-shopping-bag-line mr-2"></i>For Buyers
+        </button>
+      </div>
+    </div>
+
+    <!-- Farmer Steps -->
+    <div id="how-farmer" class="how-tab-content active grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+      <div class="text-center">
+        <div class="relative inline-flex mb-6">
+          <div class="w-20 h-20 bg-[#0D631B] rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-green-200">
+            <i class="ri-user-add-line text-white text-3xl"></i>
+          </div>
+          <span class="absolute -top-2 -right-2 w-8 h-8 bg-[#e8a000] rounded-full flex items-center justify-center text-white font-black text-sm">1</span>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-3">Sign Up & Verify</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          Create your farmer account with your farm details. Complete NIN verification and AI liveness check to earn your trust badge.
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="relative inline-flex mb-6">
+          <div class="w-20 h-20 bg-[#0D631B] rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-green-200">
+            <i class="ri-upload-cloud-line text-white text-3xl"></i>
+          </div>
+          <span class="absolute -top-2 -right-2 w-8 h-8 bg-[#e8a000] rounded-full flex items-center justify-center text-white font-black text-sm">2</span>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-3">List Your Produce</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          Add your crops with photos, pricing per unit, available quantity, and location. Your listing goes live instantly on the marketplace.
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="relative inline-flex mb-6">
+          <div class="w-20 h-20 bg-[#0D631B] rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-green-200">
+            <i class="ri-money-dollar-circle-line text-white text-3xl"></i>
+          </div>
+          <span class="absolute -top-2 -right-2 w-8 h-8 bg-[#e8a000] rounded-full flex items-center justify-center text-white font-black text-sm">3</span>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-3">Get Paid Securely</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          Buyers pay into escrow. You fulfil the order. Once the buyer confirms delivery, funds are instantly released to your wallet.
+        </p>
+      </div>
+    </div>
+
+    <!-- Buyer Steps -->
+    <div id="how-buyer" class="how-tab-content grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+      <div class="text-center">
+        <div class="relative inline-flex mb-6">
+          <div class="w-20 h-20 bg-[#e8a000] rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-amber-200">
+            <i class="ri-search-line text-white text-3xl"></i>
+          </div>
+          <span class="absolute -top-2 -right-2 w-8 h-8 bg-[#0D631B] rounded-full flex items-center justify-center text-white font-black text-sm">1</span>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-3">Browse & Discover</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          Sign up and browse fresh produce from verified Nigerian farmers. Filter by category, location, and price to find what you need.
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="relative inline-flex mb-6">
+          <div class="w-20 h-20 bg-[#e8a000] rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-amber-200">
+            <i class="ri-secure-payment-line text-white text-3xl"></i>
+          </div>
+          <span class="absolute -top-2 -right-2 w-8 h-8 bg-[#0D631B] rounded-full flex items-center justify-center text-white font-black text-sm">2</span>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-3">Order with Confidence</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          Add to cart and place your order. Your payment goes into secure escrow — not to the farmer — until you receive your goods.
+        </p>
+      </div>
+      <div class="text-center">
+        <div class="relative inline-flex mb-6">
+          <div class="w-20 h-20 bg-[#e8a000] rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-amber-200">
+            <i class="ri-checkbox-circle-line text-white text-3xl"></i>
+          </div>
+          <span class="absolute -top-2 -right-2 w-8 h-8 bg-[#0D631B] rounded-full flex items-center justify-center text-white font-black text-sm">3</span>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 mb-3">Confirm & Release</h3>
+        <p class="text-gray-500 text-sm leading-relaxed">
+          Receive your fresh produce. Confirm delivery on your dashboard and the farmer gets paid. Rate your experience to help the community.
+        </p>
+      </div>
+    </div>
+
+    <!-- CTA below steps -->
+    <div class="text-center mt-14">
+      <button onclick="goToRoleSelect()" class="inline-flex items-center gap-2 px-8 py-4 bg-[#0D631B] hover:bg-[#0a4f15] text-white font-bold text-base rounded-2xl transition-colors shadow-lg shadow-green-200">
+        Start Your Journey
+        <i class="ri-arrow-right-line"></i>
+      </button>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PRODUCE PREVIEW SECTION
+════════════════════════════════════════════════════════ -->
+<section class="py-20 md:py-24 bg-white overflow-hidden">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="flex flex-col md:flex-row items-center gap-12 md:gap-16">
+      <!-- Text -->
+      <div class="md:w-1/2">
+        <span class="inline-block text-[#0D631B] text-sm font-bold tracking-wider uppercase mb-3 bg-[#e8f5e9] px-4 py-1.5 rounded-full">
+          Live Marketplace
+        </span>
+        <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-6 leading-tight">
+          Fresh Produce,<br />Direct from the Farm
+        </h2>
+        <p class="text-gray-500 text-lg leading-relaxed mb-8">
+          Browse hundreds of listings from verified farms across Nigeria — tomatoes, yams, maize, cassava, and more. All priced fairly, all traceable to source.
+        </p>
+        <div class="space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-[#e8f5e9] rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="ri-checkbox-circle-fill text-[#0D631B] text-sm"></i>
+            </div>
+            <p class="text-gray-600 text-sm">Every seller is identity-verified with AI</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-[#e8f5e9] rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="ri-checkbox-circle-fill text-[#0D631B] text-sm"></i>
+            </div>
+            <p class="text-gray-600 text-sm">Real-time inventory — no stale listings</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-8 bg-[#e8f5e9] rounded-lg flex items-center justify-center flex-shrink-0">
+              <i class="ri-checkbox-circle-fill text-[#0D631B] text-sm"></i>
+            </div>
+            <p class="text-gray-600 text-sm">Direct pricing — no middlemen markup</p>
+          </div>
+        </div>
+        <button onclick="goToSignupBuyer()" class="mt-8 inline-flex items-center gap-2 px-7 py-3.5 bg-[#0D631B] hover:bg-[#0a4f15] text-white font-bold rounded-2xl transition-colors">
+          Browse the Marketplace <i class="ri-arrow-right-line"></i>
+        </button>
+      </div>
+
+      <!-- Product Cards Preview -->
+      <div class="md:w-1/2 w-full">
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Card 1 -->
+          <div class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-md">
+            <div class="h-36 overflow-hidden bg-green-50">
+              <img src="https://images.unsplash.com/photo-1592924357228-91a4daadcfea?w=400&q=80" alt="Tomatoes" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('flex','items-center','justify-center'); this.style.display='none'; this.insertAdjacentHTML('afterend', '<span class=\'text-4xl\'>🍅</span>');">
+            </div>
+            <div class="p-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-gray-900">Premium Tomatoes</span>
+                <span class="text-[#0D631B] text-xs font-black">₦2,500/kg</span>
+              </div>
+              <span class="text-xs text-gray-400 flex items-center gap-1"><i class="ri-map-pin-line"></i> Kano</span>
+            </div>
+          </div>
+
+          <!-- Card 2 -->
+          <div class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-md mt-6">
+            <div class="h-36 overflow-hidden bg-yellow-50">
+              <img src="https://images.unsplash.com/photo-1601593346740-925612772716?w=400&q=80" alt="Maize" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('flex','items-center','justify-center'); this.style.display='none'; this.insertAdjacentHTML('afterend', '<span class=\'text-4xl\'>🌽</span>');">
+            </div>
+            <div class="p-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-gray-900">Golden Maize</span>
+                <span class="text-[#0D631B] text-xs font-black">₦850/kg</span>
+              </div>
+              <span class="text-xs text-gray-400 flex items-center gap-1"><i class="ri-map-pin-line"></i> Kaduna</span>
+            </div>
+          </div>
+
+          <!-- Card 3 -->
+          <div class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-md -mt-4">
+            <div class="h-36 overflow-hidden bg-amber-50">
+              <img src="https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=400&q=80" alt="Pepper" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('flex','items-center','justify-center'); this.style.display='none'; this.insertAdjacentHTML('afterend', '<span class=\'text-4xl\'>🫑</span>');">
+            </div>
+            <div class="p-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-gray-900">Sweet Pepper</span>
+                <span class="text-[#0D631B] text-xs font-black">₦3,200/kg</span>
+              </div>
+              <span class="text-xs text-gray-400 flex items-center gap-1"><i class="ri-map-pin-line"></i> Lagos</span>
+            </div>
+          </div>
+
+          <!-- Card 4 -->
+          <div class="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-md">
+            <div class="h-36 overflow-hidden bg-stone-50">
+              <img src="https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&q=80" alt="Vegetables" class="w-full h-full object-cover" onerror="this.parentElement.classList.add('flex','items-center','justify-center'); this.style.display='none'; this.insertAdjacentHTML('afterend', '<span class=\'text-4xl\'>🥬</span>');">
+            </div>
+            <div class="p-3">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs font-bold text-gray-900">Garden Eggs</span>
+                <span class="text-[#0D631B] text-xs font-black">₦2,100/kg</span>
+              </div>
+              <span class="text-xs text-gray-400 flex items-center gap-1"><i class="ri-map-pin-line"></i> Plateau</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     TESTIMONIALS SECTION
+════════════════════════════════════════════════════════ -->
+<section id="testimonials" class="py-20 md:py-28 bg-gray-50">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Header -->
+    <div class="text-center max-w-2xl mx-auto mb-16">
+      <span class="inline-block text-[#0D631B] text-sm font-bold tracking-wider uppercase mb-3 bg-[#e8f5e9] px-4 py-1.5 rounded-full">
+        Success Stories
+      </span>
+      <h2 class="text-3xl md:text-4xl font-black text-gray-900 mb-4">
+        Trusted by Farmers & Buyers
+      </h2>
+      <p class="text-gray-500 text-lg">Real people. Real harvests. Real money.</p>
+    </div>
+
+    <!-- Testimonials Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+      <!-- T1 -->
+      <div class="testimonial-card bg-white rounded-2xl p-7 border border-gray-100 shadow-sm">
+        <div class="flex items-center gap-1 mb-4">
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+        </div>
+        <p class="text-gray-700 text-sm leading-relaxed mb-6">
+          "Before HarvestLynk, I struggled to find trusted buyers. Now I sell 3 tonnes of tomatoes every month directly. The escrow payment gives me peace of mind I never had before."
+        </p>
+        <div class="flex items-center gap-3">
+          <img src="https://i.pravatar.cc/60?img=47" alt="Amaka" class="w-12 h-12 rounded-full object-cover" onerror="this.style.display='none'">
+          <div>
+            <p class="text-sm font-bold text-gray-900">Amaka Okafor</p>
+            <p class="text-xs text-gray-400">Tomato Farmer · Kano</p>
+          </div>
+          <div class="ml-auto">
+            <span class="text-xs bg-[#e8f5e9] text-[#0D631B] px-2 py-1 rounded-full font-semibold">Verified Farmer</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- T2 -->
+      <div class="testimonial-card bg-[#0D631B] rounded-2xl p-7 shadow-sm">
+        <div class="flex items-center gap-1 mb-4">
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+        </div>
+        <p class="text-white/90 text-sm leading-relaxed mb-6">
+          "I supply restaurants in Lagos and always struggled with fake farmers. HarvestLynk's verification changed everything. I've done 40+ orders with zero disputes."
+        </p>
+        <div class="flex items-center gap-3">
+          <img src="https://i.pravatar.cc/60?img=33" alt="Chidi" class="w-12 h-12 rounded-full object-cover" onerror="this.style.display='none'">
+          <div>
+            <p class="text-sm font-bold text-white">Chidi Nwosu</p>
+            <p class="text-xs text-green-300">Restaurant Buyer · Lagos</p>
+          </div>
+          <div class="ml-auto">
+            <span class="text-xs bg-white/15 text-white px-2 py-1 rounded-full font-semibold">Verified Buyer</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- T3 -->
+      <div class="testimonial-card bg-white rounded-2xl p-7 border border-gray-100 shadow-sm">
+        <div class="flex items-center gap-1 mb-4">
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-fill text-[#e8a000] text-sm"></i>
+          <i class="ri-star-half-line text-[#e8a000] text-sm"></i>
+        </div>
+        <p class="text-gray-700 text-sm leading-relaxed mb-6">
+          "The AI Crop Doctor saved my cassava harvest. I uploaded a photo and within seconds knew it was mosaic virus. Treated it early and saved almost 80% of my crop."
+        </p>
+        <div class="flex items-center gap-3">
+          <img src="https://i.pravatar.cc/60?img=55" alt="Musa" class="w-12 h-12 rounded-full object-cover" onerror="this.style.display='none'">
+          <div>
+            <p class="text-sm font-bold text-gray-900">Musa Adamu</p>
+            <p class="text-xs text-gray-400">Cassava Farmer · Benue</p>
+          </div>
+          <div class="ml-auto">
+            <span class="text-xs bg-[#e8f5e9] text-[#0D631B] px-2 py-1 rounded-full font-semibold">Verified Farmer</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     CTA BANNER
+════════════════════════════════════════════════════════ -->
+<section class="py-20 md:py-24 bg-white">
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="relative bg-[#0D631B] rounded-3xl overflow-hidden text-center px-8 py-16 md:py-20">
+      <!-- Background circles -->
+      <div class="absolute -top-20 -right-20 w-64 h-64 rounded-full border-[40px] border-white/10 pointer-events-none"></div>
+      <div class="absolute -bottom-16 -left-16 w-48 h-48 rounded-full border-[32px] border-white/10 pointer-events-none"></div>
+
+      <span class="inline-block bg-white/15 text-white text-xs font-bold px-4 py-1.5 rounded-full mb-5 tracking-wider uppercase">
+        Ready to Start?
+      </span>
+      <h2 class="text-3xl md:text-5xl font-black text-white mb-4 leading-tight">
+        Join 500+ Farmers Already<br class="hidden md:block" /> on HarvestLynk
+      </h2>
+      <p class="text-white/75 text-lg mb-10 max-w-lg mx-auto">
+        Create your account in under 3 minutes. No monthly fees. No hidden charges. Just fresh produce and fair trade.
+      </p>
+      <div class="flex flex-col sm:flex-row justify-center gap-4">
+        <button onclick="goToSignupFarmer()" class="flex items-center justify-center gap-2 px-8 py-4 bg-white text-[#0D631B] font-bold text-base rounded-2xl hover:bg-gray-50 transition-colors">
+          <i class="ri-plant-line"></i> Join as Farmer
+        </button>
+        <button onclick="goToSignupBuyer()" class="flex items-center justify-center gap-2 px-8 py-4 bg-[#e8a000] hover:bg-[#d09000] text-white font-bold text-base rounded-2xl transition-colors">
+          <i class="ri-store-2-line"></i> Join as Buyer
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════════════════ -->
+<footer class="bg-gray-900 text-gray-400 py-14">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+
+      <!-- Brand -->
+      <div class="lg:col-span-1">
+        <div class="flex items-center gap-2 text-white font-bold text-xl mb-4">
+          <div class="w-8 h-8 bg-[#0D631B] rounded-lg flex items-center justify-center">
+            <i class="ri-plant-line text-white text-sm"></i>
+          </div>
+          HarvestLynk
+        </div>
+        <p class="text-sm leading-relaxed mb-5">
+          Connecting Nigerian farmers and buyers through trust, technology, and transparency.
+        </p>
+        <div class="flex gap-3">
+          <a href="#" class="w-9 h-9 bg-gray-800 hover:bg-[#0D631B] rounded-lg flex items-center justify-center transition-colors">
+            <i class="ri-twitter-x-line text-sm text-white"></i>
+          </a>
+          <a href="#" class="w-9 h-9 bg-gray-800 hover:bg-[#0D631B] rounded-lg flex items-center justify-center transition-colors">
+            <i class="ri-instagram-line text-sm text-white"></i>
+          </a>
+          <a href="#" class="w-9 h-9 bg-gray-800 hover:bg-[#0D631B] rounded-lg flex items-center justify-center transition-colors">
+            <i class="ri-facebook-line text-sm text-white"></i>
+          </a>
+        </div>
+      </div>
+
+      <!-- Platform -->
+      <div>
+        <h4 class="text-white text-sm font-bold mb-4">Platform</h4>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#features" class="hover:text-white transition-colors">Features</a></li>
+          <li><a href="#how-it-works" class="hover:text-white transition-colors">How It Works</a></li>
+          <li><button onclick="goToSignupFarmer()" class="hover:text-white transition-colors">Join as Farmer</button></li>
+          <li><button onclick="goToSignupBuyer()" class="hover:text-white transition-colors">Join as Buyer</button></li>
+        </ul>
+      </div>
+
+      <!-- Legal -->
+      <div>
+        <h4 class="text-white text-sm font-bold mb-4">Legal</h4>
+        <ul class="space-y-2 text-sm">
+          <li><a href="#" class="hover:text-white transition-colors">Terms of Service</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Privacy Policy</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Escrow Policy</a></li>
+          <li><a href="#" class="hover:text-white transition-colors">Cookie Policy</a></li>
+        </ul>
+      </div>
+
+      <!-- Contact -->
+      <div>
+        <h4 class="text-white text-sm font-bold mb-4">Contact</h4>
+        <ul class="space-y-3 text-sm">
+          <li class="flex items-center gap-2">
+            <i class="ri-mail-line text-[#0D631B]"></i>
+            hello@harvestlynk.ng
+          </li>
+          <li class="flex items-center gap-2">
+            <i class="ri-phone-line text-[#0D631B]"></i>
+            +234 800 HARVEST
+          </li>
+          <li class="flex items-center gap-2">
+            <i class="ri-map-pin-line text-[#0D631B]"></i>
+            Lagos, Nigeria
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="border-t border-gray-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+      <p class="text-xs">&copy; 2025 HarvestLynk. All rights reserved.</p>
+      <p class="text-xs">Built with ❤️ for Nigerian Agriculture</p>
+    </div>
+  </div>
+</footer>
+
+
+</div><!-- /pg-landing -->
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE: ROLE SELECT
+════════════════════════════════════════════════════════ -->
+<div id="pg-role-select" class="page min-h-screen bg-gray-50 flex flex-col">
+
+  <!-- Top bar -->
+  <div class="bg-white border-b border-gray-100 px-4 sm:px-6 py-4">
+    <div class="max-w-5xl mx-auto flex items-center justify-between">
+      <button onclick="showPage('pg-landing')" class="flex items-center gap-1.5 text-gray-500 hover:text-gray-900 text-sm font-medium transition-colors">
+        <i class="ri-arrow-left-line"></i> Back to Home
+      </button>
+      <a href="#" class="flex items-center gap-2 text-[#0D631B] font-bold text-lg">
+        <div class="w-7 h-7 bg-[#0D631B] rounded-lg flex items-center justify-center">
+          <i class="ri-plant-line text-white text-xs"></i>
+        </div>
+        HarvestLynk
+      </a>
+      <button onclick="showPage('pg-login')" class="text-sm text-gray-500 hover:text-[#0D631B] font-semibold transition-colors hidden sm:block">
+        Already have an account?
+      </button>
+      <div class="sm:hidden w-6"></div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-12 md:py-16">
+    <div class="text-center mb-10 md:mb-12 max-w-xl">
+      <span class="inline-block text-[#0D631B] text-xs font-bold tracking-wider uppercase mb-3 bg-[#e8f5e9] px-4 py-1.5 rounded-full">
+        Step 1 of 2
+      </span>
+      <h1 class="text-3xl md:text-4xl font-black text-gray-900 mb-3">
+        How do you want to use HarvestLynk?
+      </h1>
+      <p class="text-gray-500 text-base md:text-lg">
+        Choose your role to get started. You can always create another account later.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 max-w-3xl w-full">
+
+      <!-- Farmer card -->
+      <div
+        onclick="showPage('pg-signup-farmer')"
+        class="role-card cursor-pointer bg-white border-2 border-gray-200 hover:border-[#0D631B] rounded-3xl p-7 md:p-8 hover:shadow-xl hover:-translate-y-1 group"
+      >
+        <div class="w-16 h-16 bg-[#e8f5e9] group-hover:bg-[#0D631B] rounded-2xl flex items-center justify-center mb-6 transition-colors">
+          <i class="ri-plant-line text-[#0D631B] group-hover:text-white text-3xl transition-colors"></i>
+        </div>
+        <h2 class="text-2xl font-black text-gray-900 mb-2">I'm a Farmer</h2>
+        <p class="text-gray-500 text-sm leading-relaxed mb-6">
+          List your produce, get verified, receive escrow-protected payments, and grow your farm business digitally.
+        </p>
+        <ul class="space-y-2 mb-8">
+          <li class="flex items-center gap-2 text-sm text-gray-600">
+            <i class="ri-checkbox-circle-fill text-[#0D631B]"></i> List unlimited produce
+          </li>
+          <li class="flex items-center gap-2 text-sm text-gray-600">
+            <i class="ri-checkbox-circle-fill text-[#0D631B]"></i> AI crop disease doctor
+          </li>
+          <li class="flex items-center gap-2 text-sm text-gray-600">
+            <i class="ri-checkbox-circle-fill text-[#0D631B]"></i> Secure wallet &amp; withdrawals
+          </li>
+        </ul>
+        <div class="flex items-center justify-between">
+          <span class="text-[#0D631B] font-bold text-sm group-hover:underline">Join as Farmer →</span>
+          <span class="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">Free forever</span>
+        </div>
+      </div>
+
+      <!-- Buyer card -->
+      <div
+        onclick="showPage('pg-signup-buyer')"
+        class="role-card cursor-pointer bg-white border-2 border-gray-200 hover:border-[#e8a000] rounded-3xl p-7 md:p-8 hover:shadow-xl hover:-translate-y-1 group"
+      >
+        <div class="w-16 h-16 bg-amber-50 group-hover:bg-[#e8a000] rounded-2xl flex items-center justify-center mb-6 transition-colors">
+          <i class="ri-store-2-line text-[#e8a000] group-hover:text-white text-3xl transition-colors"></i>
+        </div>
+        <h2 class="text-2xl font-black text-gray-900 mb-2">I'm a Buyer</h2>
+        <p class="text-gray-500 text-sm leading-relaxed mb-6">
+          Browse fresh produce from verified farms, place orders with escrow protection, and track deliveries in real time.
+        </p>
+        <ul class="space-y-2 mb-8">
+          <li class="flex items-center gap-2 text-sm text-gray-600">
+            <i class="ri-checkbox-circle-fill text-[#e8a000]"></i> Access 500+ verified farms
+          </li>
+          <li class="flex items-center gap-2 text-sm text-gray-600">
+            <i class="ri-checkbox-circle-fill text-[#e8a000]"></i> Escrow payment protection
+          </li>
+          <li class="flex items-center gap-2 text-sm text-gray-600">
+            <i class="ri-checkbox-circle-fill text-[#e8a000]"></i> Real-time order tracking
+          </li>
+        </ul>
+        <div class="flex items-center justify-between">
+          <span class="text-[#e8a000] font-bold text-sm group-hover:underline">Join as Buyer →</span>
+          <span class="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">Free forever</span>
+        </div>
+      </div>
+
+    </div>
+
+    <p class="text-center text-sm text-gray-500 mt-10">
+      Already have an account? <button onclick="showPage('pg-login')" class="text-[#0D631B] font-semibold hover:underline">Log in</button>
+    </p>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE: FARMER SIGNUP
+════════════════════════════════════════════════════════ -->
+<div id="pg-signup-farmer" class="page min-h-screen flex">
+
+  <!-- Left panel -->
+  <div class="hidden lg:flex w-1/2 relative bg-[#0D631B] flex-col justify-end overflow-hidden">
+    <img
+      src="https://images.unsplash.com/photo-1464226184884-fa280b87c399?w=900&q=80"
+      alt="Farm aerial"
+      class="auth-image absolute inset-0 w-full h-full object-cover"
+      onerror="this.remove()"
+    />
+    <div class="relative z-10 p-10 mb-10 max-w-sm">
+      <i class="ri-double-quotes-l text-5xl text-white/30 mb-3 block"></i>
+      <p class="text-white text-xl font-semibold leading-relaxed mb-5">
+        "HarvestLynk helped me reach buyers I never could have found on my own. My income doubled in six months."
+      </p>
+      <div class="flex items-center gap-3">
+        <img src="https://i.pravatar.cc/48?img=47" class="w-12 h-12 rounded-full border-2 border-white/30" onerror="this.style.display='none'" />
+        <div>
+          <p class="text-white text-sm font-bold">Amaka Okafor</p>
+          <p class="text-green-300 text-xs">Tomato Farmer · Kano</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right panel: Form -->
+  <div class="flex-1 flex flex-col items-center justify-start lg:justify-center p-5 sm:p-8 bg-white overflow-y-auto">
+    <div class="w-full max-w-md py-8 lg:py-0">
+
+      <button onclick="showPage('pg-role-select')" class="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-sm mb-6 transition-colors">
+        <i class="ri-arrow-left-line"></i> Back
+      </button>
+
+      <h1 class="text-2xl font-bold text-[#0D631B] mb-1">HarvestLynk</h1>
+      <h2 class="text-xl font-bold text-gray-900 mb-1">Create Farmer Account</h2>
+      <p class="text-gray-400 text-sm mb-7">Step 1: Basic Farm Information</p>
+
+      <div class="space-y-4">
+        <!-- Full Name -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Full Name</label>
+          <div class="relative">
+            <i class="ri-user-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="fs-name" placeholder="Enter your full name"
+              class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Email Address</label>
+          <div class="relative">
+            <i class="ri-mail-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="email" id="fs-email" placeholder="name@example.com"
+              class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+          </div>
+        </div>
+
+        <!-- Farm Name -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Farm Name</label>
+          <div class="relative">
+            <i class="ri-store-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="fs-farmname" placeholder="e.g. Green Harvest Ventures"
+              class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+          </div>
+        </div>
+
+        <!-- Location + Phone -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-semibold text-gray-800 mb-1.5">Location (State/LGA)</label>
+            <div class="relative">
+              <i class="ri-map-pin-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              <input type="text" id="fs-location" placeholder="Kano, Ungogo"
+                class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-800 mb-1.5">Phone Number</label>
+            <div class="relative">
+              <i class="ri-phone-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+              <input type="tel" id="fs-phone" placeholder="+234 000..."
+                class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Password</label>
+          <div class="relative">
+            <i class="ri-lock-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="password" id="fs-password" placeholder="Min. 8 characters"
+              class="w-full pl-11 pr-11 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+            <button type="button" onclick="togglePassword('fs-password', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <i class="ri-eye-line"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Terms -->
+        <label class="flex items-start gap-2.5 cursor-pointer">
+          <input type="checkbox" id="fs-terms" class="mt-0.5 rounded border-gray-300 accent-[#0D631B]" />
+          <span class="text-xs text-gray-500 leading-relaxed">
+            I agree to the <a href="#" class="text-[#0D631B] font-medium hover:underline">Terms of Service</a> and acknowledge the
+            <a href="#" class="text-[#0D631B] font-medium hover:underline">AI Verification</a> protocol for farmer authentication.
+          </span>
+        </label>
+
+        <!-- Error -->
+        <p id="fs-error" class="hidden text-red-500 text-sm p-3 bg-red-50 rounded-xl"></p>
+
+        <!-- Submit -->
+        <button onclick="handleFarmerSignup()" id="fs-submit-btn"
+          class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#0D631B] text-white font-semibold hover:bg-[#0a4f15] transition-colors disabled:opacity-70">
+          Create Farmer Account <i class="ri-arrow-right-line"></i>
+        </button>
+
+        <!-- OR -->
+        <div class="relative flex items-center gap-3 my-1">
+          <div class="flex-1 h-px bg-gray-200"></div>
+          <span class="text-xs text-gray-400 font-medium tracking-wide">OR</span>
+          <div class="flex-1 h-px bg-gray-200"></div>
+        </div>
+
+        <!-- Google -->
+        <button onclick="handleGoogleAuth('farmer')" class="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Sign up with Google
+        </button>
+      </div>
+
+      <p class="text-center text-sm text-gray-500 mt-6">
+        Already have an account?
+        <button onclick="showPage('pg-login')" class="text-[#e8a000] font-semibold hover:underline">Log in as Farmer</button>
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE: BUYER SIGNUP
+════════════════════════════════════════════════════════ -->
+<div id="pg-signup-buyer" class="page min-h-screen flex">
+
+  <!-- Left panel -->
+  <div class="hidden lg:flex w-1/2 relative bg-[#0D631B] flex-col justify-end overflow-hidden">
+    <img
+      src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=900&q=80"
+      alt="Fresh produce market"
+      class="auth-image absolute inset-0 w-full h-full object-cover"
+      onerror="this.remove()"
+    />
+    <div class="relative z-10 p-10 mb-10 max-w-sm">
+      <i class="ri-double-quotes-l text-5xl text-white/30 mb-3 block"></i>
+      <p class="text-white text-xl font-semibold leading-relaxed mb-5">
+        "I supply restaurants across Lagos and HarvestLynk's verification gives me total confidence in every farmer I buy from."
+      </p>
+      <div class="flex items-center gap-3">
+        <img src="https://i.pravatar.cc/48?img=33" class="w-12 h-12 rounded-full border-2 border-white/30" onerror="this.style.display='none'" />
+        <div>
+          <p class="text-white text-sm font-bold">Chidi Nwosu</p>
+          <p class="text-green-300 text-xs">Restaurant Buyer · Lagos</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right panel: Form -->
+  <div class="flex-1 flex flex-col items-center justify-start lg:justify-center p-5 sm:p-8 bg-white overflow-y-auto">
+    <div class="w-full max-w-md py-8 lg:py-0">
+
+      <button onclick="showPage('pg-role-select')" class="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-sm mb-6 transition-colors">
+        <i class="ri-arrow-left-line"></i> Back
+      </button>
+
+      <h1 class="text-2xl font-bold text-[#0D631B] mb-1">HarvestLynk</h1>
+      <h2 class="text-xl font-bold text-gray-900 mb-1">Create Buyer Account</h2>
+      <p class="text-gray-400 text-sm mb-7">Start shopping from verified Nigerian farms in minutes.</p>
+
+      <div class="space-y-4">
+        <!-- Full Name -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Full Name</label>
+          <div class="relative">
+            <i class="ri-user-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="bs-name" placeholder="Enter your full name"
+              class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Email Address</label>
+          <div class="relative">
+            <i class="ri-mail-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="email" id="bs-email" placeholder="name@example.com"
+              class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+          </div>
+        </div>
+
+        <!-- Phone -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Phone Number</label>
+          <div class="relative">
+            <i class="ri-phone-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="tel" id="bs-phone" placeholder="+234 000..."
+              class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+          </div>
+        </div>
+
+        <!-- Location -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Delivery Location (State)</label>
+          <div class="relative">
+            <i class="ri-map-pin-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="bs-location" placeholder="e.g. Lagos"
+              class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Password</label>
+          <div class="relative">
+            <i class="ri-lock-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="password" id="bs-password" placeholder="Min. 8 characters"
+              class="w-full pl-11 pr-11 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+            <button type="button" onclick="togglePassword('bs-password', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <i class="ri-eye-line"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Terms -->
+        <label class="flex items-start gap-2.5 cursor-pointer">
+          <input type="checkbox" id="bs-terms" class="mt-0.5 rounded border-gray-300 accent-[#0D631B]" />
+          <span class="text-xs text-gray-500 leading-relaxed">
+            I agree to the <a href="#" class="text-[#0D631B] font-medium hover:underline">Terms of Service</a> and
+            <a href="#" class="text-[#0D631B] font-medium hover:underline">Privacy Policy</a>.
+          </span>
+        </label>
+
+        <!-- Error -->
+        <p id="bs-error" class="hidden text-red-500 text-sm p-3 bg-red-50 rounded-xl"></p>
+
+        <!-- Submit -->
+        <button onclick="handleBuyerSignup()" id="bs-submit-btn"
+          class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#0D631B] text-white font-semibold hover:bg-[#0a4f15] transition-colors disabled:opacity-70">
+          Create Buyer Account <i class="ri-arrow-right-line"></i>
+        </button>
+
+        <!-- OR -->
+        <div class="relative flex items-center gap-3 my-1">
+          <div class="flex-1 h-px bg-gray-200"></div>
+          <span class="text-xs text-gray-400 font-medium tracking-wide">OR</span>
+          <div class="flex-1 h-px bg-gray-200"></div>
+        </div>
+
+        <!-- Google -->
+        <button onclick="handleGoogleAuth('buyer')" class="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Sign up with Google
+        </button>
+      </div>
+
+      <p class="text-center text-sm text-gray-500 mt-6">
+        Already have an account?
+        <button onclick="showPage('pg-login')" class="text-[#e8a000] font-semibold hover:underline">Log in as Buyer</button>
+      </p>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE: LOGIN
+════════════════════════════════════════════════════════ -->
+<div id="pg-login" class="page min-h-screen flex">
+
+  <!-- Left panel -->
+  <div class="hidden lg:flex w-1/2 relative bg-[#0D631B] flex-col justify-end overflow-hidden">
+    <img
+      src="https://images.unsplash.com/photo-1500937386664-56d1dfef3854?w=900&q=80"
+      alt="Farmer in field"
+      class="auth-image absolute inset-0 w-full h-full object-cover"
+      onerror="this.remove()"
+    />
+    <div class="relative z-10 p-10 mb-10 max-w-sm">
+      <span class="inline-flex items-center gap-2 bg-white/15 backdrop-blur-sm text-white text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
+        <i class="ri-shield-check-line text-[#e8a000]"></i> Escrow-Protected Platform
+      </span>
+      <h3 class="text-white text-2xl font-black leading-tight mb-3">Welcome back to HarvestLynk</h3>
+      <p class="text-green-200 text-sm leading-relaxed">
+        Sign in to manage your listings, track orders, and access your wallet — all in one place.
+      </p>
+    </div>
+  </div>
+
+  <!-- Right panel: Form -->
+  <div class="flex-1 flex flex-col items-center justify-start lg:justify-center p-5 sm:p-8 bg-white overflow-y-auto">
+    <div class="w-full max-w-md py-8 lg:py-0">
+
+      <button onclick="showPage('pg-landing')" class="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-sm mb-6 transition-colors">
+        <i class="ri-arrow-left-line"></i> Back to Home
+      </button>
+
+      <h1 class="text-2xl font-bold text-[#0D631B] mb-1">HarvestLynk</h1>
+      <h2 class="text-xl font-bold text-gray-900 mb-1">Welcome Back</h2>
+      <p class="text-gray-400 text-sm mb-6">
+        Securely access your marketplace as a <span id="login-role-label" class="font-semibold text-gray-600">Buyer</span>
+      </p>
+
+      <!-- Role tabs -->
+      <div class="flex bg-gray-100 rounded-xl p-1 mb-6">
+        <button id="login-tab-buyer" onclick="setLoginRole('buyer')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-colors bg-white text-[#0D631B] shadow-sm">
+          <i class="ri-store-2-line"></i> Buyer
+        </button>
+        <button id="login-tab-farmer" onclick="setLoginRole('farmer')" class="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-colors text-gray-500">
+          <i class="ri-plant-line"></i> Farmer
+        </button>
+      </div>
+
+      <div class="space-y-4">
+        <!-- Email -->
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Email Address</label>
+          <div class="relative">
+            <i class="ri-mail-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="email" id="lg-email" placeholder="name@example.com"
+              class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label class="text-sm font-semibold text-gray-800">Password</label>
+            <a href="#" class="text-sm text-[#0D631B] font-medium hover:underline">Forgot Password?</a>
+          </div>
+          <div class="relative">
+            <i class="ri-lock-line absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input type="password" id="lg-password" placeholder="Your password"
+              onkeydown="if(event.key==='Enter') handleLogin()"
+              class="w-full pl-11 pr-11 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+            <button type="button" onclick="togglePassword('lg-password', this)" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <i class="ri-eye-line"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <p id="lg-error" class="hidden text-red-500 text-sm p-3 bg-red-50 rounded-xl"></p>
+
+        <!-- Submit -->
+        <button onclick="handleLogin()" id="lg-submit-btn"
+          class="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl bg-[#0D631B] text-white font-semibold hover:bg-[#0a4f15] transition-colors disabled:opacity-70">
+          <span id="lg-submit-label">Sign In as Buyer <i class="ri-arrow-right-line"></i></span>
+        </button>
+
+        <!-- OR -->
+        <div class="relative flex items-center gap-3 my-2">
+          <div class="flex-1 h-px bg-gray-200"></div>
+          <span class="text-xs text-gray-400 font-medium tracking-wide">OR CONTINUE WITH</span>
+          <div class="flex-1 h-px bg-gray-200"></div>
+        </div>
+
+        <!-- Google -->
+        <button onclick="handleGoogleAuth(loginRole)" class="w-full flex items-center justify-center gap-3 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors">
+          <svg viewBox="0 0 24 24" class="w-5 h-5" xmlns="http://www.w3.org/2000/svg">
+            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+          </svg>
+          Sign In with Google
+        </button>
+      </div>
+
+      <p class="text-center text-sm text-gray-500 mt-6">
+        Don't have an account?
+        <button id="login-signup-link" onclick="showPage('pg-signup-buyer')" class="text-[#e8a000] font-semibold hover:underline">Create an Account</button>
+      </p>
+
+      <div class="border-t border-gray-100 mt-6 pt-5 text-center">
+        <button onclick="setLoginRole(loginRole === 'buyer' ? 'farmer' : 'buyer')" class="text-sm text-[#0D631B] font-semibold hover:underline">
+          Switch to <span id="login-switch-label">Farmer</span> Login
+        </button>
+      </div>
+
+      <!-- Demo hint -->
+      <div class="mt-8 flex items-start gap-2 p-3 rounded-xl bg-amber-50 text-xs text-gray-600">
+        <i class="ri-information-line text-[#e8a000] mt-0.5 flex-shrink-0"></i>
+        <p>This is a prototype — enter any email &amp; password (min. 1 character) to continue.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE: FARMER ONBOARDING
+════════════════════════════════════════════════════════ -->
+<div id="pg-onboard-farmer" class="page min-h-screen flex flex-col bg-white">
+
+  <!-- Step bar -->
+  <div class="bg-gray-50 border-b border-gray-100 px-4 py-5">
+    <div class="overflow-x-auto">
+      <div class="flex items-center min-w-fit mx-auto max-w-2xl">
+        <!-- Step 1: Basic Info (done) -->
+        <div class="flex items-center">
+          <div class="flex flex-col items-center gap-1.5">
+            <div class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 bg-[#0D631B] border-[#0D631B] text-white">
+              <i class="ri-check-line"></i>
+            </div>
+            <span class="text-xs font-semibold whitespace-nowrap text-gray-700">Basic Info</span>
+          </div>
+          <div class="w-12 sm:w-20 h-px mx-2 mb-5 flex-shrink-0 bg-[#0D631B]"></div>
+        </div>
+        <!-- Step 2 -->
+        <div class="flex items-center">
+          <div class="flex flex-col items-center gap-1.5">
+            <div id="ob-circle-2" class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-colors bg-white border-[#0D631B] text-[#0D631B]">2</div>
+            <span id="ob-label-2" class="text-xs font-semibold whitespace-nowrap text-[#0D631B]">Identity Verification</span>
+          </div>
+          <div id="ob-line-2" class="w-12 sm:w-20 h-px mx-2 mb-5 flex-shrink-0 bg-gray-300"></div>
+        </div>
+        <!-- Step 3 -->
+        <div class="flex items-center">
+          <div class="flex flex-col items-center gap-1.5">
+            <div id="ob-circle-3" class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-colors bg-white border-gray-300 text-gray-400">3</div>
+            <span id="ob-label-3" class="text-xs font-semibold whitespace-nowrap text-gray-400">Farm Verification</span>
+          </div>
+          <div id="ob-line-3" class="w-12 sm:w-20 h-px mx-2 mb-5 flex-shrink-0 bg-gray-300"></div>
+        </div>
+        <!-- Step 4 -->
+        <div class="flex items-center">
+          <div class="flex flex-col items-center gap-1.5">
+            <div id="ob-circle-4" class="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-colors bg-white border-gray-300 text-gray-400">4</div>
+            <span id="ob-label-4" class="text-xs font-semibold whitespace-nowrap text-gray-400">Complete</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Step 2: Identity Verification ──────────────────── -->
+  <div id="ob-step2" class="ob-step flex-1 overflow-y-auto px-4 py-6 max-w-2xl mx-auto w-full space-y-6">
+    <div>
+      <h2 class="text-2xl font-bold text-gray-900">Verify Your Identity</h2>
+      <p class="text-gray-500 text-sm mt-2 leading-relaxed">
+        To protect our marketplace and ensure secure escrow payments, we need to verify your official credentials.
+        Verified farmers get 3x more visibility and instant trust badges.
+      </p>
+    </div>
+
+    <!-- NIN upload card -->
+    <div class="border border-gray-200 rounded-2xl p-6">
+      <div class="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-4">
+        <i class="ri-id-card-line text-[#0D631B] text-2xl"></i>
+      </div>
+      <h3 class="text-lg font-bold text-gray-900 mb-1">Upload NIN</h3>
+      <p class="text-gray-500 text-sm mb-5">
+        Take a photo of your National Identity Number card or slip. Recommended for faster processing.
+      </p>
+
+      <input id="ob-nin-input" type="file" accept="image/*" class="hidden" onchange="handleNINUpload(this)" />
+
+      <div id="ob-nin-empty">
+        <button onclick="document.getElementById('ob-nin-input').click()" class="text-[#0D631B] font-semibold text-sm flex items-center gap-1 hover:underline">
+          Start Upload <i class="ri-arrow-right-line"></i>
+        </button>
+      </div>
+
+      <div id="ob-nin-preview" class="hidden space-y-3">
+        <img id="ob-nin-img" src="" alt="NIN preview" class="w-full max-h-48 object-contain rounded-xl border border-gray-200 bg-gray-50" />
+        <div class="flex items-center justify-between text-sm">
+          <span class="text-gray-600 flex items-center gap-1.5 truncate">
+            <i class="ri-image-line text-[#0D631B] flex-shrink-0"></i> <span id="ob-nin-filename" class="truncate"></span>
+          </span>
+          <button onclick="removeNIN()" class="text-red-500 hover:text-red-700 text-xs font-medium flex-shrink-0 ml-2">
+            <i class="ri-delete-bin-line"></i> Remove
+          </button>
+        </div>
+        <div class="flex items-center gap-2 text-xs text-[#0D631B] bg-green-50 px-3 py-2 rounded-lg">
+          <i class="ri-checkbox-circle-fill"></i> Document received — pending AI review
+        </div>
+      </div>
+
+      <p id="ob-nin-error" class="hidden mt-3 text-red-500 text-xs flex items-center gap-1"></p>
+    </div>
+
+    <!-- AI liveness check card -->
+    <div class="border border-gray-200 rounded-2xl p-6">
+      <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
+        <i class="ri-camera-line text-blue-600 text-2xl"></i>
+      </div>
+      <h3 class="text-lg font-bold text-gray-900 mb-1">AI Liveness Check</h3>
+      <p class="text-gray-500 text-sm mb-5">
+        A quick selfie scan confirms you're a real person and matches your NIN photo. Takes less than 30 seconds.
+      </p>
+      <button onclick="runLivenessCheck()" id="ob-liveness-btn" class="text-blue-600 font-semibold text-sm flex items-center gap-1 hover:underline">
+        Start Liveness Check <i class="ri-arrow-right-line"></i>
+      </button>
+      <div id="ob-liveness-result" class="hidden mt-3 flex items-center gap-2 text-xs text-blue-600 bg-blue-50 px-3 py-2 rounded-lg">
+        <i class="ri-checkbox-circle-fill"></i> Liveness check passed (98% match)
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Step 3: Farm Verification ──────────────────────── -->
+  <div id="ob-step3" class="ob-step hidden flex-1 overflow-y-auto px-4 py-6 max-w-2xl mx-auto w-full space-y-6">
+
+    <!-- Farm location -->
+    <div>
+      <h3 class="text-sm font-bold text-gray-800 mb-2">Farm Location &amp; Boundary</h3>
+      <div
+        onclick="pinFarmLocation()"
+        class="relative h-44 rounded-2xl overflow-hidden cursor-pointer border border-gray-200 bg-gradient-to-br from-green-200 to-green-400 flex items-center justify-center"
+      >
+        <div class="absolute inset-0 grid grid-cols-6 grid-rows-4 opacity-30 pointer-events-none">
+          <div class="border border-green-600 bg-green-500"></div><div class="border border-green-600 bg-green-300"></div><div class="border border-green-600 bg-green-400"></div><div class="border border-green-600 bg-green-500"></div><div class="border border-green-600 bg-green-300"></div><div class="border border-green-600 bg-green-400"></div>
+          <div class="border border-green-600 bg-green-300"></div><div class="border border-green-600 bg-green-400"></div><div class="border border-green-600 bg-green-500"></div><div class="border border-green-600 bg-green-300"></div><div class="border border-green-600 bg-green-400"></div><div class="border border-green-600 bg-green-500"></div>
+          <div class="border border-green-600 bg-green-500"></div><div class="border border-green-600 bg-green-300"></div><div class="border border-green-600 bg-green-400"></div><div class="border border-green-600 bg-green-500"></div><div class="border border-green-600 bg-green-300"></div><div class="border border-green-600 bg-green-400"></div>
+          <div class="border border-green-600 bg-green-300"></div><div class="border border-green-600 bg-green-400"></div><div class="border border-green-600 bg-green-500"></div><div class="border border-green-600 bg-green-300"></div><div class="border border-green-600 bg-green-400"></div><div class="border border-green-600 bg-green-500"></div>
+        </div>
+        <div class="relative z-10 flex flex-col items-center gap-1 text-white">
+          <i id="ob-pin-icon" class="ri-map-pin-2-fill text-3xl drop-shadow text-white"></i>
+          <span id="ob-pin-text" class="text-sm font-semibold drop-shadow">Tap to Pin Location</span>
+        </div>
+      </div>
+      <div class="mt-3 flex items-start gap-2 p-3 rounded-xl bg-green-50 text-xs text-gray-600">
+        <i class="ri-refresh-line text-[#0D631B] mt-0.5 flex-shrink-0"></i>
+        <p>Our system uses <span class="text-[#0D631B] font-semibold">AI Satellite Imagery Analysis</span> to verify your farm's presence and productivity history.</p>
+      </div>
+    </div>
+
+    <!-- Farm size + production type -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Farm Size</label>
+        <div class="flex min-w-0">
+          <input type="number" placeholder="0.00"
+            class="min-w-0 flex-1 px-3 py-3 rounded-l-xl border border-r-0 border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B]" />
+          <span class="px-3 py-3 rounded-r-xl border border-gray-200 bg-gray-100 text-sm text-gray-500 whitespace-nowrap flex-shrink-0">Hectares</span>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Primary Production Type</label>
+        <div class="relative">
+          <select class="w-full appearance-none px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] pr-10">
+            <option>Crop Farming</option>
+            <option>Livestock</option>
+            <option>Aquaculture</option>
+            <option>Mixed Farming</option>
+          </select>
+          <i class="ri-arrow-down-s-line absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"></i>
+        </div>
+      </div>
+    </div>
+
+    <!-- Crop selection -->
+    <div>
+      <label class="block text-sm font-semibold text-gray-700 mb-3">Main Crops / Livestock</label>
+      <div class="grid grid-cols-3 sm:grid-cols-6 gap-2">
+        <button onclick="toggleCrop('maize', this)" class="flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-colors text-xs font-semibold border-[#0D631B] bg-green-50 text-[#0D631B]">
+          <i class="ri-seedling-line text-lg"></i> Maize
+        </button>
+        <button onclick="toggleCrop('cassava', this)" class="flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-colors text-xs font-semibold border-gray-200 text-gray-600 hover:border-gray-300">
+          <i class="ri-plant-line text-lg"></i> Cassava
+        </button>
+        <button onclick="toggleCrop('rice', this)" class="flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-colors text-xs font-semibold border-gray-200 text-gray-600 hover:border-gray-300">
+          <i class="ri-leaf-line text-lg"></i> Rice
+        </button>
+        <button onclick="toggleCrop('yam', this)" class="flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-colors text-xs font-semibold border-gray-200 text-gray-600 hover:border-gray-300">
+          <i class="ri-plant-line text-lg"></i> Yam
+        </button>
+        <button onclick="toggleCrop('tomato', this)" class="flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-colors text-xs font-semibold border-gray-200 text-gray-600 hover:border-gray-300">
+          <i class="ri-leaf-line text-lg"></i> Tomatoes
+        </button>
+        <button onclick="toggleCrop('cocoa', this)" class="flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-colors text-xs font-semibold border-gray-200 text-gray-600 hover:border-gray-300">
+          <i class="ri-seedling-line text-lg"></i> Cocoa
+        </button>
+      </div>
+    </div>
+
+    <!-- Ownership documents -->
+    <div>
+      <label class="block text-sm font-semibold text-gray-700 mb-0.5">Ownership Documents</label>
+      <p class="text-xs text-gray-400 mb-3">Upload your C of O or Local Government Ownership Letter</p>
+
+      <input id="ob-doc-input" type="file" accept=".pdf,image/jpeg,image/png" multiple class="hidden" onchange="handleDocUpload(this)" />
+
+      <div
+        onclick="document.getElementById('ob-doc-input').click()"
+        ondragover="event.preventDefault()"
+        ondrop="handleDocDrop(event)"
+        class="border-2 border-dashed border-gray-300 rounded-2xl p-8 flex flex-col items-center text-center cursor-pointer hover:border-[#0D631B] hover:bg-green-50/30 transition-colors"
+      >
+        <i class="ri-upload-cloud-2-line text-[#0D631B] text-3xl mb-2"></i>
+        <p class="text-sm font-semibold text-gray-800">Drop files here or click to upload</p>
+        <p class="text-xs text-gray-400 mt-1">PDF, JPG, or PNG (Max 10MB)</p>
+      </div>
+
+      <div id="ob-docs-list" class="mt-3 flex flex-wrap gap-2"></div>
+    </div>
+  </div>
+
+  <!-- ── Step 4: Complete ────────────────────────────────── -->
+  <div id="ob-step4" class="ob-step hidden flex-1 flex flex-col items-center justify-center text-center px-6 py-16">
+    <div class="relative mb-8">
+      <div class="w-24 h-24 rounded-full bg-green-100 flex items-center justify-center">
+        <div class="w-16 h-16 rounded-full bg-[#0D631B] flex items-center justify-center">
+          <i class="ri-check-line text-white text-3xl"></i>
+        </div>
+      </div>
+      <div class="absolute -bottom-2 -right-2 w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center shadow-md">
+        <i class="ri-tractor-line text-white text-lg"></i>
+      </div>
+    </div>
+
+    <h2 class="text-2xl md:text-3xl font-bold text-gray-900 mb-3">You're All Set!</h2>
+    <p class="text-gray-500 text-sm max-w-sm leading-relaxed mb-8">
+      Your farm profile is now being reviewed by our AI verification team. Most verifications are completed within 24 hours.
+    </p>
+
+    <div class="flex flex-col sm:flex-row gap-3">
+      <button onclick="onboardGoToDashboard()" class="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-[#0D631B] text-white font-semibold hover:bg-[#0a4f15] transition-colors">
+        Go to Dashboard <i class="ri-arrow-right-line"></i>
+      </button>
+      <button onclick="onboardListProduct()" class="flex items-center justify-center gap-2 px-8 py-3.5 rounded-xl bg-amber-600 text-white font-semibold hover:bg-amber-700 transition-colors">
+        List Your First Product
+      </button>
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div id="ob-bottom-bar" class="border-t border-gray-100 bg-white px-6 py-4 flex items-center justify-between gap-4">
+    <button id="ob-back-btn" class="text-sm text-gray-500 hover:text-gray-800 transition-colors">
+      Skip for now, I'll do this later
+    </button>
+    <button id="ob-next-btn" class="px-8 py-3 rounded-xl text-white font-semibold text-sm transition-colors bg-[#0D631B] hover:bg-[#0a4f15]">
+      Continue to Verification
+    </button>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE: FARMER DASHBOARD
+════════════════════════════════════════════════════════ -->
+<div id="pg-farmer-dashboard" class="page min-h-screen bg-gray-50 flex">
+
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden lg:flex flex-col w-64 bg-white border-r border-gray-100 fixed inset-y-0 left-0 z-30">
+    <div class="flex items-center gap-2 px-6 h-16 border-b border-gray-100 flex-shrink-0">
+      <div class="w-8 h-8 bg-[#0D631B] rounded-lg flex items-center justify-center">
+        <i class="ri-plant-fill text-white text-lg"></i>
+      </div>
+      <span class="font-bold text-lg text-gray-900">HarvestLynk</span>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="farmer-nav-desktop"></nav>
+    <div class="border-t border-gray-100 p-3">
+      <button onclick="logoutToLanding()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+        <i class="ri-logout-box-r-line text-lg"></i> Log Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Mobile sidebar -->
+  <div id="farmer-sidebar-mobile" class="lg:hidden fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="toggleFarmerSidebar()"></div>
+    <aside class="absolute inset-y-0 left-0 w-72 max-w-[80%] bg-white flex flex-col">
+      <div class="flex items-center justify-between px-5 h-16 border-b border-gray-100 flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-[#0D631B] rounded-lg flex items-center justify-center">
+            <i class="ri-plant-fill text-white text-lg"></i>
+          </div>
+          <span class="font-bold text-lg text-gray-900">HarvestLynk</span>
+        </div>
+        <button onclick="toggleFarmerSidebar()" class="w-9 h-9 flex items-center justify-center text-gray-400">
+          <i class="ri-close-line text-2xl"></i>
+        </button>
+      </div>
+      <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="farmer-nav-mobile"></nav>
+      <div class="border-t border-gray-100 p-3">
+        <button onclick="logoutToLanding()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+          <i class="ri-logout-box-r-line text-lg"></i> Log Out
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Main column -->
+  <div class="flex-1 lg:ml-64 min-h-screen flex flex-col w-full">
+    <!-- Topbar -->
+    <header class="bg-white border-b border-gray-100 sticky top-0 z-20 flex items-center justify-between gap-3 px-4 sm:px-6 h-16 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleFarmerSidebar()" class="lg:hidden w-9 h-9 flex items-center justify-center text-gray-500">
+          <i class="ri-menu-line text-2xl"></i>
+        </button>
+        <h1 id="farmer-view-title" class="text-base sm:text-lg font-bold text-gray-900">Dashboard</h1>
+      </div>
+      <div class="flex items-center gap-3 sm:gap-4">
+        <button class="relative w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+          <i class="ri-notification-3-line text-xl"></i>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full"></span>
+        </button>
+        <div class="flex items-center gap-2.5">
+          <img src="https://i.pravatar.cc/80?img=12" alt="avatar" class="w-9 h-9 rounded-full object-cover border border-gray-200" />
+          <div class="hidden sm:block">
+            <p id="farmer-name-label" class="text-sm font-semibold text-gray-900 leading-tight">Farmer</p>
+            <p id="farmer-farm-label" class="text-xs text-gray-400 leading-tight">Farm</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto">
+
+      <!-- ═══ VIEW: DASHBOARD ═══ -->
+      <div id="fview-dashboard" class="fview space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Welcome Back, <span id="fdash-name">Farmer</span></h1>
+          <p class="text-gray-500 mt-1">Here's your farm overview for today.</p>
+        </div>
+
+        <!-- Financial Overview -->
+        <div class="bg-white rounded-2xl p-4 md:p-6 border border-[#BFCABA]">
+          <div class="flex items-start sm:items-center justify-between mb-5 gap-3 flex-col sm:flex-row">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">Financial Overview</h2>
+              <p class="text-sm text-[#0D631B] flex items-center gap-1 mt-1">
+                <i class="ri-shield-check-line"></i> Escrow Protection Active
+              </p>
+            </div>
+            <button onclick="showFarmerView('wallet')" class="px-4 py-2 rounded-lg bg-[#835400] text-white text-sm font-medium hover:bg-[#a16a00] transition-colors self-start sm:self-auto">
+              Withdraw Funds
+            </button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-[#0D631B] rounded-xl p-5 transition-transform hover:scale-[1.02]">
+              <p class="text-green-200 text-xs mb-2">Available Balance</p>
+              <p class="text-white text-2xl font-bold">₦124,500.00</p>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-5 transition-transform hover:scale-[1.02]">
+              <p class="text-gray-500 text-xs mb-1">Pending (Escrow)</p>
+              <div class="flex items-center gap-2 mt-1">
+                <i class="ri-lock-line text-gray-400"></i>
+                <p class="text-gray-900 text-2xl font-bold">₦38,000.00</p>
+              </div>
+            </div>
+            <div class="bg-gray-50 rounded-xl p-5 transition-transform hover:scale-[1.02]">
+              <p class="text-gray-500 text-xs mb-1">Awaiting Confirmation</p>
+              <p class="text-gray-900 text-2xl font-bold mb-2">2</p>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-[#FCAB28] text-[#694300] font-medium">Not confirmed</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- My Produce Listings -->
+        <div>
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">My Produce Listings</h2>
+            <button onclick="showFarmerView('farm')" class="text-sm text-[#0D631B] font-medium hover:underline">View All</button>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div class="bg-white rounded-2xl overflow-hidden border border-[#BFCABA] hover:-translate-y-1 transition-transform">
+              <div class="relative h-44">
+                <div class="absolute top-3 right-3 z-10 flex items-center gap-1 bg-[#0D631B] text-white text-xs px-2 py-0.5 rounded-full">
+                  <i class="ri-checkbox-circle-fill text-xs"></i> ACTIVE
+                </div>
+                <img src="https://images.unsplash.com/photo-1592924357228-91a4daadcfea?q=80&w=600&auto=format&fit=crop" onerror="this.src='https://images.unsplash.com/photo-1546470427-227c7f7f3460?q=80&w=600&auto=format&fit=crop'" alt="Tomatoes" class="w-full h-full object-cover" />
+              </div>
+              <div class="p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="font-medium text-gray-900 text-sm">Fresh Tomatoes</p>
+                  <p class="text-[#0D631B] text-sm font-semibold">₦1,200/basket</p>
+                </div>
+                <p class="text-xs text-gray-400 flex items-center gap-1"><i class="ri-inbox-archive-line"></i> 45 baskets remaining</p>
+              </div>
+            </div>
+            <div class="bg-white rounded-2xl overflow-hidden border border-[#BFCABA] hover:-translate-y-1 transition-transform">
+              <div class="relative h-44">
+                <div class="absolute top-3 right-3 z-10 flex items-center gap-1 bg-[#0D631B] text-white text-xs px-2 py-0.5 rounded-full">
+                  <i class="ri-checkbox-circle-fill text-xs"></i> ACTIVE
+                </div>
+                <img src="https://images.unsplash.com/photo-1551754655-cd27e38d2076?q=80&w=600&auto=format&fit=crop" onerror="this.src='https://images.unsplash.com/photo-1601593768799-76fb8c0b3f6c?q=80&w=600&auto=format&fit=crop'" alt="Maize" class="w-full h-full object-cover" />
+              </div>
+              <div class="p-4">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="font-medium text-gray-900 text-sm">Yellow Maize</p>
+                  <p class="text-[#0D631B] text-sm font-semibold">₦35,000/bag</p>
+                </div>
+                <p class="text-xs text-gray-400 flex items-center gap-1"><i class="ri-inbox-archive-line"></i> 12 bags remaining</p>
+              </div>
+            </div>
+            <!-- Logistics promo -->
+            <div class="rounded-2xl overflow-hidden relative bg-[#1a3a5c] min-h-[180px] sm:col-span-2 lg:col-span-1 hover:scale-[1.02] transition-transform">
+              <img src="https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?q=80&w=600&auto=format&fit=crop" alt="truck" class="absolute inset-0 w-full h-full object-cover mix-blend-multiply" />
+              <div class="absolute inset-0 flex flex-col justify-end p-5">
+                <i class="ri-truck-line text-3xl text-blue-200 mb-3"></i>
+                <p class="text-white font-bold text-lg leading-snug">Need Logistics?</p>
+                <p class="text-blue-200 text-sm mt-1">Book a truck for your next harvest delivery.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Order Activity -->
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div class="px-4 md:px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-gray-900">Recent Order Activity</h2>
+            <button onclick="showFarmerView('orders')" class="text-sm text-[#0D631B] font-medium hover:underline">View All</button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[600px]">
+              <thead>
+                <tr class="text-gray-400 text-xs">
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Order ID</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Buyer</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Produce</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Amount</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Escrow Status</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-50">
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 md:px-6 py-4 font-medium text-[#0D631B] text-xs">#A1B2C3D4</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-700">Chidi Nwosu</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-600">Fresh Tomatoes (10 baskets)</td>
+                  <td class="px-4 md:px-6 py-4 font-semibold text-gray-900">₦12,000</td>
+                  <td class="px-4 md:px-6 py-4"><span class="flex items-center gap-2 text-gray-600 text-xs"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Secured in Escrow</span></td>
+                  <td class="px-4 md:px-6 py-4"><button onclick="showFarmerView('orders')" class="text-[#0D631B] font-medium hover:underline text-xs">Details</button></td>
+                </tr>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 md:px-6 py-4 font-medium text-[#0D631B] text-xs">#E5F6G7H8</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-700">Amaka Okafor</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-600">Yellow Maize (2 bags)</td>
+                  <td class="px-4 md:px-6 py-4 font-semibold text-gray-900">₦70,000</td>
+                  <td class="px-4 md:px-6 py-4"><span class="flex items-center gap-2 text-gray-600 text-xs"><span class="w-2 h-2 rounded-full bg-green-500"></span> Funds Released</span></td>
+                  <td class="px-4 md:px-6 py-4"><button onclick="showFarmerView('orders')" class="text-[#0D631B] font-medium hover:underline text-xs">Details</button></td>
+                </tr>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 md:px-6 py-4 font-medium text-[#0D631B] text-xs">#I9J0K1L2</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-700">Tunde Bakare</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-600">Fresh Tomatoes (5 baskets)</td>
+                  <td class="px-4 md:px-6 py-4 font-semibold text-gray-900">₦6,000</td>
+                  <td class="px-4 md:px-6 py-4"><span class="flex items-center gap-2 text-gray-600 text-xs"><span class="w-2 h-2 rounded-full bg-red-400"></span> Awaiting Payment</span></td>
+                  <td class="px-4 md:px-6 py-4"><button onclick="showFarmerView('orders')" class="text-[#0D631B] font-medium hover:underline text-xs">Details</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- ═══ /VIEW: DASHBOARD ═══ -->
+
+      <!-- ═══ VIEW: MY FARM ═══ -->
+      <div id="fview-farm" class="fview hidden space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900">My Farm</h1>
+            <p class="text-gray-500 mt-1">Manage your produce listings.</p>
+          </div>
+          <button onclick="openListProductModal()" class="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-[#0D631B] text-white font-semibold text-sm hover:bg-[#0a4f15] transition-colors">
+            <i class="ri-add-line text-lg"></i> Add Product
+          </button>
+        </div>
+
+        <div id="farm-listings-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      </div>
+      <!-- ═══ /VIEW: MY FARM ═══ -->
+
+      <!-- ═══ VIEW: AI CROP DOCTOR ═══ -->
+      <div id="fview-cropdoctor" class="fview hidden space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">AI Crop Doctor</h1>
+          <p class="text-gray-500 mt-1">Upload a photo of your crop to detect pests, diseases, or nutrient issues.</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-6 md:p-8">
+          <div id="cd-upload-empty" class="border-2 border-dashed border-gray-200 rounded-2xl flex flex-col items-center justify-center text-center py-12 px-4">
+            <div class="w-16 h-16 bg-green-50 rounded-2xl flex items-center justify-center mb-4">
+              <i class="ri-camera-lens-line text-[#0D631B] text-3xl"></i>
+            </div>
+            <p class="font-semibold text-gray-900 mb-1">Upload a crop or leaf photo</p>
+            <p class="text-sm text-gray-400 mb-5 max-w-sm">Our AI will analyze the image and suggest possible issues and treatments within seconds.</p>
+            <label class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#0D631B] text-white font-semibold text-sm hover:bg-[#0a4f15] transition-colors cursor-pointer">
+              <i class="ri-upload-2-line"></i> Upload Photo
+              <input type="file" accept="image/*" class="hidden" onchange="runCropDoctor(this)" />
+            </label>
+          </div>
+
+          <div id="cd-scanning" class="hidden flex-col items-center justify-center text-center py-16">
+            <i class="ri-loader-4-line spin text-[#0D631B] text-4xl mb-4"></i>
+            <p class="font-semibold text-gray-900">Analyzing image...</p>
+            <p class="text-sm text-gray-400 mt-1">Our AI model is checking for diseases, pests &amp; nutrient deficiencies.</p>
+          </div>
+
+          <div id="cd-result" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+              <img id="cd-result-img" src="" alt="Scanned crop" class="w-full h-64 object-cover rounded-2xl border border-gray-100" />
+              <div>
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-semibold mb-3">
+                  <i class="ri-error-warning-line"></i> Early Blight Detected
+                </div>
+                <h3 class="text-lg font-bold text-gray-900 mb-2">Tomato Early Blight (Alternaria solani)</h3>
+                <p class="text-sm text-gray-500 mb-4 leading-relaxed">
+                  Dark concentric spots on lower leaves suggest early blight. Left untreated, this can spread to stems and fruit, reducing yield by up to 30%.
+                </p>
+                <p class="text-sm font-semibold text-gray-900 mb-2">Recommended Action</p>
+                <ul class="space-y-2 text-sm text-gray-600">
+                  <li class="flex items-start gap-2"><i class="ri-checkbox-circle-line text-[#0D631B] mt-0.5"></i> Remove and destroy affected leaves immediately.</li>
+                  <li class="flex items-start gap-2"><i class="ri-checkbox-circle-line text-[#0D631B] mt-0.5"></i> Apply a copper-based fungicide every 7-10 days.</li>
+                  <li class="flex items-start gap-2"><i class="ri-checkbox-circle-line text-[#0D631B] mt-0.5"></i> Improve air circulation by spacing plants further apart.</li>
+                </ul>
+                <button onclick="resetCropDoctor()" class="mt-6 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors">
+                  <i class="ri-refresh-line"></i> Scan Another Photo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- ═══ /VIEW: AI CROP DOCTOR ═══ -->
+
+      <!-- ═══ VIEW: MARKETPLACE (browse, read-only for farmer) ═══ -->
+      <div id="fview-marketplace" class="fview hidden space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Marketplace</h1>
+          <p class="text-gray-500 mt-1">See what other verified farms are listing nationwide.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="farmer-marketplace-grid"></div>
+      </div>
+      <!-- ═══ /VIEW: MARKETPLACE ═══ -->
+
+      <!-- ═══ VIEW: ORDERS ═══ -->
+      <div id="fview-orders" class="fview hidden space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Orders</h1>
+          <p class="text-gray-500 mt-1">Track every sale and its escrow status.</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[700px]">
+              <thead>
+                <tr class="text-gray-400 text-xs">
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Order ID</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Buyer</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Produce</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Amount</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Date</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Escrow Status</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-50">
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 md:px-6 py-4 font-medium text-[#0D631B] text-xs">#A1B2C3D4</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-700">Chidi Nwosu</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-600">Fresh Tomatoes (10 baskets)</td>
+                  <td class="px-4 md:px-6 py-4 font-semibold text-gray-900">₦12,000</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-500">Today</td>
+                  <td class="px-4 md:px-6 py-4"><span class="flex items-center gap-2 text-gray-600 text-xs"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Secured in Escrow</span></td>
+                  <td class="px-4 md:px-6 py-4"><button onclick="confirmOrderHandover('A1B2C3D4', this)" class="px-3 py-1.5 rounded-lg bg-[#0D631B] text-white text-xs font-semibold hover:bg-[#0a4f15] transition-colors">Confirm Handover</button></td>
+                </tr>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 md:px-6 py-4 font-medium text-[#0D631B] text-xs">#E5F6G7H8</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-700">Amaka Okafor</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-600">Yellow Maize (2 bags)</td>
+                  <td class="px-4 md:px-6 py-4 font-semibold text-gray-900">₦70,000</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-500">Yesterday</td>
+                  <td class="px-4 md:px-6 py-4"><span class="flex items-center gap-2 text-gray-600 text-xs"><span class="w-2 h-2 rounded-full bg-green-500"></span> Funds Released</span></td>
+                  <td class="px-4 md:px-6 py-4"><span class="text-gray-300 text-xs">—</span></td>
+                </tr>
+                <tr class="hover:bg-gray-50">
+                  <td class="px-4 md:px-6 py-4 font-medium text-[#0D631B] text-xs">#I9J0K1L2</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-700">Tunde Bakare</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-600">Fresh Tomatoes (5 baskets)</td>
+                  <td class="px-4 md:px-6 py-4 font-semibold text-gray-900">₦6,000</td>
+                  <td class="px-4 md:px-6 py-4 text-gray-500">2d ago</td>
+                  <td class="px-4 md:px-6 py-4"><span class="flex items-center gap-2 text-gray-600 text-xs"><span class="w-2 h-2 rounded-full bg-red-400"></span> Awaiting Payment</span></td>
+                  <td class="px-4 md:px-6 py-4"><span class="text-gray-300 text-xs">—</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- ═══ /VIEW: ORDERS ═══ -->
+
+      <!-- ═══ VIEW: WALLET ═══ -->
+      <div id="fview-wallet" class="fview hidden space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Wallet</h1>
+          <p class="text-gray-500 mt-1">Manage your earnings and withdrawals.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-[#0D631B] rounded-2xl p-5">
+            <p class="text-green-200 text-xs mb-2">Available Balance</p>
+            <p class="text-white text-2xl font-bold">₦124,500.00</p>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border border-gray-100">
+            <p class="text-gray-500 text-xs mb-1">Pending (Escrow)</p>
+            <p class="text-gray-900 text-2xl font-bold">₦38,000.00</p>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border border-gray-100">
+            <p class="text-gray-500 text-xs mb-1">Total Earned (Lifetime)</p>
+            <p class="text-gray-900 text-2xl font-bold">₦612,300.00</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 md:p-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+            <h2 class="text-lg font-bold text-gray-900">Withdraw to Bank Account</h2>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-800 mb-1.5">Bank</label>
+              <select class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors">
+                <option>Guaranty Trust Bank (GTBank)</option>
+                <option>Access Bank</option>
+                <option>Zenith Bank</option>
+                <option>First Bank of Nigeria</option>
+                <option>UBA</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-800 mb-1.5">Account Number</label>
+              <input type="text" placeholder="0123456789" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+            </div>
+          </div>
+          <div class="mb-5">
+            <label class="block text-sm font-semibold text-gray-800 mb-1.5">Amount</label>
+            <input id="wallet-amount" type="text" placeholder="₦0.00" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+          </div>
+          <button id="wallet-withdraw-btn" onclick="handleWithdraw(this)" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#835400] text-white font-semibold text-sm hover:bg-[#a16a00] transition-colors">
+            <i class="ri-bank-line"></i> Withdraw Funds
+          </button>
+        </div>
+      </div>
+      <!-- ═══ /VIEW: WALLET ═══ -->
+
+      <!-- ═══ VIEW: PROFILE ═══ -->
+      <div id="fview-profile" class="fview hidden space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Profile</h1>
+          <p class="text-gray-500 mt-1">Your account &amp; farm information.</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 md:p-6">
+          <div class="flex items-center gap-4 mb-6">
+            <img src="https://i.pravatar.cc/120?img=12" alt="avatar" class="w-16 h-16 rounded-full object-cover border border-gray-200" />
+            <div>
+              <p id="profile-name" class="font-bold text-gray-900 text-lg">Farmer</p>
+              <p class="text-sm text-gray-400 flex items-center gap-1 mt-0.5"><i class="ri-checkbox-circle-fill text-[#0D631B]"></i> Verified Farmer</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p class="text-gray-400 text-xs mb-1">Email</p>
+              <p id="profile-email" class="font-medium text-gray-900">—</p>
+            </div>
+            <div>
+              <p class="text-gray-400 text-xs mb-1">Phone</p>
+              <p id="profile-phone" class="font-medium text-gray-900">—</p>
+            </div>
+            <div>
+              <p class="text-gray-400 text-xs mb-1">Farm Name</p>
+              <p id="profile-farm" class="font-medium text-gray-900">—</p>
+            </div>
+            <div>
+              <p class="text-gray-400 text-xs mb-1">Location</p>
+              <p id="profile-location" class="font-medium text-gray-900">—</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- ═══ /VIEW: PROFILE ═══ -->
+
+    </main>
+  </div>
+</div>
+
+<!-- ═══ LIST PRODUCT MODAL ═══ -->
+<div id="list-product-modal" class="fixed inset-0 z-[200] hidden items-center justify-center p-4 bg-black/40">
+  <div class="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white">
+      <h3 class="text-lg font-bold text-gray-900">List New Product</h3>
+      <button onclick="closeListProductModal()" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+        <i class="ri-close-line text-xl"></i>
+      </button>
+    </div>
+    <div class="p-5 sm:p-6 space-y-4">
+      <div>
+        <label class="block text-sm font-semibold text-gray-800 mb-1.5">Product Name</label>
+        <input id="lp-name" type="text" placeholder="e.g. Fresh Tomatoes" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Category</label>
+          <select id="lp-category" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors">
+            <option>Vegetables</option>
+            <option>Grains &amp; Cereals</option>
+            <option>Tubers</option>
+            <option>Fruits</option>
+            <option>Legumes</option>
+            <option>Livestock</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Unit</label>
+          <select id="lp-unit" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors">
+            <option>basket</option>
+            <option>bag</option>
+            <option>kg</option>
+            <option>crate</option>
+            <option>tuber</option>
+            <option>litre</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Price per Unit (₦)</label>
+          <input id="lp-price" type="number" placeholder="1200" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-800 mb-1.5">Quantity Available</label>
+          <input id="lp-quantity" type="number" placeholder="45" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-semibold text-gray-800 mb-1.5">Description (optional)</label>
+        <textarea id="lp-description" rows="3" placeholder="Describe quality, harvest date, etc." class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors resize-none"></textarea>
+      </div>
+      <p id="lp-error" class="hidden text-red-500 text-sm p-3 bg-red-50 rounded-xl"></p>
+    </div>
+    <div class="px-5 sm:px-6 py-4 border-t border-gray-100 flex justify-end gap-3 sticky bottom-0 bg-white">
+      <button onclick="closeListProductModal()" class="px-5 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors">Cancel</button>
+      <button id="lp-submit-btn" onclick="submitListProduct()" class="px-5 py-2.5 rounded-xl bg-[#0D631B] text-white text-sm font-semibold hover:bg-[#0a4f15] transition-colors">Publish Listing</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     PAGE: BUYER DASHBOARD
+════════════════════════════════════════════════════════ -->
+<div id="pg-buyer-dashboard" class="page min-h-screen bg-gray-50 flex">
+
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden lg:flex flex-col w-64 bg-white border-r border-gray-100 fixed inset-y-0 left-0 z-30">
+    <div class="flex items-center gap-2 px-6 h-16 border-b border-gray-100 flex-shrink-0">
+      <div class="w-8 h-8 bg-[#0D631B] rounded-lg flex items-center justify-center">
+        <i class="ri-plant-fill text-white text-lg"></i>
+      </div>
+      <span class="font-bold text-lg text-gray-900">HarvestLynk</span>
+    </div>
+    <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="buyer-nav-desktop"></nav>
+    <div class="border-t border-gray-100 p-3">
+      <button onclick="logoutToLanding()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+        <i class="ri-logout-box-r-line text-lg"></i> Log Out
+      </button>
+    </div>
+  </aside>
+
+  <!-- Mobile sidebar -->
+  <div id="buyer-sidebar-mobile" class="lg:hidden fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black/40" onclick="toggleBuyerSidebar()"></div>
+    <aside class="absolute inset-y-0 left-0 w-72 max-w-[80%] bg-white flex flex-col">
+      <div class="flex items-center justify-between px-5 h-16 border-b border-gray-100 flex-shrink-0">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 bg-[#0D631B] rounded-lg flex items-center justify-center">
+            <i class="ri-plant-fill text-white text-lg"></i>
+          </div>
+          <span class="font-bold text-lg text-gray-900">HarvestLynk</span>
+        </div>
+        <button onclick="toggleBuyerSidebar()" class="w-9 h-9 flex items-center justify-center text-gray-400">
+          <i class="ri-close-line text-2xl"></i>
+        </button>
+      </div>
+      <nav class="flex-1 overflow-y-auto py-4 px-3 space-y-1" id="buyer-nav-mobile"></nav>
+      <div class="border-t border-gray-100 p-3">
+        <button onclick="logoutToLanding()" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-gray-500 hover:bg-red-50 hover:text-red-600 transition-colors">
+          <i class="ri-logout-box-r-line text-lg"></i> Log Out
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Main column -->
+  <div class="flex-1 lg:ml-64 min-h-screen flex flex-col w-full">
+    <!-- Topbar -->
+    <header class="bg-white border-b border-gray-100 sticky top-0 z-20 flex items-center justify-between gap-3 px-4 sm:px-6 h-16 flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <button onclick="toggleBuyerSidebar()" class="lg:hidden w-9 h-9 flex items-center justify-center text-gray-500">
+          <i class="ri-menu-line text-2xl"></i>
+        </button>
+        <h1 id="buyer-view-title" class="text-base sm:text-lg font-bold text-gray-900">Dashboard</h1>
+      </div>
+      <div class="flex items-center gap-3 sm:gap-4">
+        <button onclick="toggleCartDrawer()" class="relative w-9 h-9 flex items-center justify-center text-gray-500 hover:text-[#0D631B] transition-colors">
+          <i class="ri-shopping-cart-2-line text-xl"></i>
+          <span id="cart-badge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">0</span>
+        </button>
+        <button class="relative w-9 h-9 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors">
+          <i class="ri-notification-3-line text-xl"></i>
+          <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-amber-500 rounded-full"></span>
+        </button>
+        <div class="flex items-center gap-2.5">
+          <img src="https://i.pravatar.cc/80?img=47" alt="avatar" class="w-9 h-9 rounded-full object-cover border border-gray-200" />
+          <div class="hidden sm:block">
+            <p id="buyer-name-label" class="text-sm font-semibold text-gray-900 leading-tight">Buyer</p>
+            <p class="text-xs text-gray-400 leading-tight">Buyer Account</p>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <main class="flex-1 p-4 sm:p-6 max-w-7xl w-full mx-auto">
+
+      <!-- ═══ VIEW: DASHBOARD ═══ -->
+      <div id="bview-dashboard" class="bview space-y-6">
+
+        <!-- Welcome banner -->
+        <div class="bg-[#0D631B] rounded-2xl px-5 md:px-8 py-5 md:py-6 relative overflow-hidden">
+          <div class="absolute inset-0 opacity-10 pointer-events-none">
+            <div class="absolute -right-10 -top-10 w-64 h-64 rounded-full border-[40px] border-white"></div>
+            <div class="absolute right-20 top-10 w-40 h-40 rounded-full border-[24px] border-white"></div>
+          </div>
+          <div class="flex items-start justify-between gap-4 relative">
+            <div>
+              <h1 class="text-xl md:text-2xl font-bold text-white mb-1">Welcome back, <span id="bdash-name">Buyer</span>!</h1>
+              <div class="flex flex-wrap items-center gap-2 md:gap-3 text-green-200 text-sm">
+                <span class="flex items-center gap-1"><i class="ri-checkbox-circle-fill text-green-300"></i> Verified Buyer</span>
+                <span class="text-green-300 hidden sm:inline">•</span>
+                <span>Member since 2026</span>
+              </div>
+            </div>
+            <button id="bdash-cart-link" onclick="toggleCartDrawer()" class="hidden items-center gap-1.5 px-3 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-sm font-medium transition-colors flex-shrink-0">
+              <i class="ri-shopping-cart-line"></i> <span id="bdash-cart-count">0</span> in cart
+            </button>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="bg-white rounded-2xl p-5 border border-gray-100 hover:scale-[1.02] transition-transform">
+            <div class="flex items-start justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                <i class="ri-money-dollar-circle-line text-xl text-[#0D631B]"></i>
+              </div>
+              <span id="bstat-spent-badge" class="text-xs font-semibold text-gray-500">1 completed order</span>
+            </div>
+            <p class="text-xs text-gray-400 font-medium tracking-wide mb-1">TOTAL SPENT</p>
+            <p id="bstat-spent" class="text-2xl font-bold text-gray-900">₦6,000</p>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border border-gray-100 hover:scale-[1.02] transition-transform">
+            <div class="flex items-start justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
+                <i class="ri-lock-line text-xl text-amber-600"></i>
+              </div>
+              <span class="text-xs font-semibold text-gray-500">In progress</span>
+            </div>
+            <p class="text-xs text-gray-400 font-medium tracking-wide mb-1">ACTIVE ESCROW</p>
+            <p id="bstat-escrow" class="text-2xl font-bold text-gray-900">1 Order</p>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border border-gray-100 hover:scale-[1.02] transition-transform">
+            <div class="flex items-start justify-between mb-4">
+              <div class="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+                <i class="ri-bank-line text-xl text-blue-600"></i>
+              </div>
+              <button onclick="showBuyerView('wallet')" class="text-xs font-semibold text-blue-600 hover:underline">Top Up</button>
+            </div>
+            <p class="text-xs text-gray-400 font-medium tracking-wide mb-1">WALLET BALANCE</p>
+            <p id="bstat-wallet" class="text-2xl font-bold text-gray-900">₦45,000.00</p>
+          </div>
+        </div>
+
+        <!-- Recent Orders -->
+        <div class="bg-white rounded-2xl border border-gray-100 p-4 md:p-6">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-lg font-bold text-gray-900">Recent Orders</h2>
+            <button onclick="showBuyerView('orders')" class="text-sm text-[#0D631B] font-medium hover:underline">View All</button>
+          </div>
+          <div id="bdash-orders-list" class="space-y-1"></div>
+        </div>
+
+        <!-- Available Harvests -->
+        <div>
+          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-gray-900">Available Harvests</h2>
+              <p class="text-sm text-gray-400">Fresh produce from verified Nigerian farms.</p>
+            </div>
+            <button onclick="showBuyerView('marketplace')" class="text-sm text-[#0D631B] font-medium hover:underline flex items-center gap-1">
+              Browse All <i class="ri-arrow-right-s-line"></i>
+            </button>
+          </div>
+          <div id="bdash-listings-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+        </div>
+      </div>
+      <!-- ═══ /VIEW: DASHBOARD ═══ -->
+
+      <!-- ═══ VIEW: MARKETPLACE ═══ -->
+      <div id="bview-marketplace" class="bview hidden space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Marketplace</h1>
+          <p class="text-gray-500 mt-1">Fresh produce, direct from verified Nigerian farms.</p>
+        </div>
+        <div class="flex flex-wrap gap-2" id="bmarket-filters"></div>
+        <div id="bmarket-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      </div>
+      <!-- ═══ /VIEW: MARKETPLACE ═══ -->
+
+      <!-- ═══ VIEW: ORDERS ═══ -->
+      <div id="bview-orders" class="bview hidden space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">My Orders</h1>
+          <p class="text-gray-500 mt-1">Track the status of every order and its escrow protection.</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm min-w-[700px]">
+              <thead>
+                <tr class="text-gray-400 text-xs">
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Order ID</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Farm</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Produce</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Amount</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Date</th>
+                  <th class="text-left px-4 md:px-6 py-3 font-medium">Status</th>
+                </tr>
+              </thead>
+              <tbody id="border-table-body" class="divide-y divide-gray-50"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- ═══ /VIEW: ORDERS ═══ -->
+
+      <!-- ═══ VIEW: WALLET ═══ -->
+      <div id="bview-wallet" class="bview hidden space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Wallet</h1>
+          <p class="text-gray-500 mt-1">Top up your wallet for instant, escrow-protected checkouts.</p>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="bg-[#0D631B] rounded-2xl p-5">
+            <p class="text-green-200 text-xs mb-2">Wallet Balance</p>
+            <p id="bwallet-balance" class="text-white text-2xl font-bold">₦45,000.00</p>
+          </div>
+          <div class="bg-white rounded-2xl p-5 border border-gray-100">
+            <p class="text-gray-500 text-xs mb-1">Total Spent (Lifetime)</p>
+            <p id="bwallet-spent" class="text-gray-900 text-2xl font-bold">₦6,000.00</p>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 md:p-6">
+          <h2 class="text-lg font-bold text-gray-900 mb-5">Fund Wallet</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label class="block text-sm font-semibold text-gray-800 mb-1.5">Payment Method</label>
+              <select class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors">
+                <option>Debit Card</option>
+                <option>Bank Transfer</option>
+                <option>USSD</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-semibold text-gray-800 mb-1.5">Amount</label>
+              <input id="bwallet-amount" type="text" placeholder="₦0.00" class="w-full px-4 py-3 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors" />
+            </div>
+          </div>
+          <button id="bwallet-fund-btn" onclick="handleFundWallet(this)" class="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-[#0D631B] text-white font-semibold text-sm hover:bg-[#0a4f15] transition-colors">
+            <i class="ri-bank-card-line"></i> Fund Wallet
+          </button>
+        </div>
+      </div>
+      <!-- ═══ /VIEW: WALLET ═══ -->
+
+      <!-- ═══ VIEW: PROFILE ═══ -->
+      <div id="bview-profile" class="bview hidden space-y-6">
+        <div>
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Profile</h1>
+          <p class="text-gray-500 mt-1">Your account information.</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-gray-100 p-5 md:p-6">
+          <div class="flex items-center gap-4 mb-6">
+            <img src="https://i.pravatar.cc/120?img=47" alt="avatar" class="w-16 h-16 rounded-full object-cover border border-gray-200" />
+            <div>
+              <p id="bprofile-name" class="font-bold text-gray-900 text-lg">Buyer</p>
+              <p class="text-sm text-gray-400 flex items-center gap-1 mt-0.5"><i class="ri-checkbox-circle-fill text-[#0D631B]"></i> Verified Buyer</p>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+            <div>
+              <p class="text-gray-400 text-xs mb-1">Email</p>
+              <p id="bprofile-email" class="font-medium text-gray-900">—</p>
+            </div>
+            <div>
+              <p class="text-gray-400 text-xs mb-1">Phone</p>
+              <p id="bprofile-phone" class="font-medium text-gray-900">—</p>
+            </div>
+            <div>
+              <p class="text-gray-400 text-xs mb-1">Location</p>
+              <p id="bprofile-location" class="font-medium text-gray-900">—</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- ═══ /VIEW: PROFILE ═══ -->
+
+    </main>
+  </div>
+</div>
+
+<!-- ═══ CART DRAWER ═══ -->
+<div id="cart-drawer" class="fixed inset-0 z-[200] hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="toggleCartDrawer()"></div>
+  <aside class="absolute inset-y-0 right-0 w-full sm:w-96 bg-white flex flex-col">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100 flex-shrink-0">
+      <h3 class="text-lg font-bold text-gray-900">Your Cart</h3>
+      <button onclick="toggleCartDrawer()" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+        <i class="ri-close-line text-xl"></i>
+      </button>
+    </div>
+    <div id="cart-items" class="flex-1 overflow-y-auto px-5 py-4 space-y-3"></div>
+    <div class="border-t border-gray-100 p-5 flex-shrink-0">
+      <div class="flex items-center justify-between mb-4">
+        <span class="text-sm text-gray-500">Total</span>
+        <span id="cart-total" class="text-xl font-bold text-gray-900">₦0</span>
+      </div>
+      <button id="cart-checkout-btn" onclick="openCheckout()" class="w-full py-3 rounded-xl bg-[#0D631B] text-white font-semibold text-sm hover:bg-[#0a4f15] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+        Proceed to Checkout
+      </button>
+    </div>
+  </aside>
+</div>
+
+<!-- ═══ CHECKOUT MODAL ═══ -->
+<div id="checkout-modal" class="fixed inset-0 z-[210] hidden items-center justify-center p-4 bg-black/40">
+  <div class="bg-white rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+    <div id="checkout-summary-view">
+      <div class="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100">
+        <h3 class="text-lg font-bold text-gray-900">Checkout</h3>
+        <button onclick="closeCheckout()" class="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600">
+          <i class="ri-close-line text-xl"></i>
+        </button>
+      </div>
+      <div class="p-5 sm:p-6 space-y-4">
+        <div id="checkout-items" class="space-y-2"></div>
+        <div class="flex items-center justify-between pt-3 border-t border-gray-100">
+          <span class="font-semibold text-gray-900">Total</span>
+          <span id="checkout-total" class="font-bold text-lg text-[#0D631B]">₦0</span>
+        </div>
+        <div class="bg-green-50 rounded-xl p-4 flex items-start gap-3">
+          <i class="ri-shield-check-line text-[#0D631B] text-lg mt-0.5"></i>
+          <p class="text-sm text-gray-700">Funds are held securely in escrow until you confirm delivery of your order.</p>
+        </div>
+        <div class="bg-gray-50 rounded-xl p-4 flex items-center justify-between">
+          <span class="text-sm text-gray-600">Pay with Wallet Balance</span>
+          <span id="checkout-wallet-balance" class="text-sm font-semibold text-gray-900">₦45,000.00</span>
+        </div>
+        <p id="checkout-error" class="hidden text-red-500 text-sm p-3 bg-red-50 rounded-xl"></p>
+      </div>
+      <div class="px-5 sm:px-6 py-4 border-t border-gray-100 flex justify-end gap-3">
+        <button onclick="closeCheckout()" class="px-5 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors">Cancel</button>
+        <button id="checkout-pay-btn" onclick="confirmCheckout()" class="px-5 py-2.5 rounded-xl bg-[#0D631B] text-white text-sm font-semibold hover:bg-[#0a4f15] transition-colors">
+          <i class="ri-lock-line"></i> Pay &amp; Place Order
+        </button>
+      </div>
+    </div>
+    <div id="checkout-success-view" class="hidden flex-col items-center text-center p-8">
+      <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
+        <i class="ri-checkbox-circle-fill text-[#0D631B] text-4xl"></i>
+      </div>
+      <h3 class="text-xl font-bold text-gray-900 mb-2">Order Placed!</h3>
+      <p class="text-gray-500 text-sm mb-6">Your payment is secured in escrow. The farmer has been notified to prepare your order.</p>
+      <button onclick="closeCheckout(); showBuyerView('orders')" class="w-full py-3 rounded-xl bg-[#0D631B] text-white font-semibold text-sm hover:bg-[#0a4f15] transition-colors">
+        View My Orders
+      </button>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ═══════════════════════════════════════════════════════
+     JAVASCRIPT
+════════════════════════════════════════════════════════ -->
+<script>
+  // ── Page router ─────────────────────────────────────────
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach((p) => p.classList.remove('active'));
+    const page = document.getElementById(id);
+    if (page) page.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  // ── Nav scroll effect (landing page only) ───────────────
+  window.addEventListener('scroll', () => {
+    const nav = document.getElementById('main-nav');
+    if (window.scrollY > 50) {
+      nav.classList.add('scrolled');
+    } else {
+      nav.classList.remove('scrolled');
+    }
+  });
+
+  // ── Mobile nav toggle ────────────────────────────────────
+  function toggleMobileNav() {
+    const mobileNav = document.getElementById('mobile-nav');
+    mobileNav.classList.toggle('open');
+    const btn = document.getElementById('mobile-menu-btn');
+    const isOpen = mobileNav.classList.contains('open');
+    btn.innerHTML = isOpen
+      ? '<i class="ri-close-line text-xl"></i>'
+      : '<i class="ri-menu-line text-xl"></i>';
+  }
+
+  // ── Top-level navigation helpers ────────────────────────
+  function goToLogin() { showPage('pg-login'); }
+  function goToRoleSelect() { showPage('pg-role-select'); }
+  function goToSignupFarmer() { showPage('pg-signup-farmer'); }
+  function goToSignupBuyer() { showPage('pg-signup-buyer'); }
+
+  // ── How It Works tab switcher ───────────────────────────
+  function switchHowTab(tab) {
+    document.getElementById('tab-farmer').classList.toggle('active', tab === 'farmer');
+    document.getElementById('tab-buyer').classList.toggle('active', tab === 'buyer');
+    document.getElementById('how-farmer').classList.toggle('active', tab === 'farmer');
+    document.getElementById('how-buyer').classList.toggle('active', tab === 'buyer');
+  }
+
+  // ── Toast notifications ──────────────────────────────────
+  function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    const styles = type === 'success'
+      ? { bg: 'bg-[#0D631B]', icon: 'ri-checkbox-circle-line' }
+      : { bg: 'bg-red-600', icon: 'ri-error-warning-line' };
+    toast.innerHTML = `
+      <div class="flex items-center gap-3 ${styles.bg} text-white px-5 py-3.5 rounded-2xl shadow-2xl max-w-sm">
+        <i class="${styles.icon} text-xl flex-shrink-0"></i>
+        <p class="text-sm font-semibold">${message}</p>
+      </div>`;
+    toast.classList.add('show');
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => toast.classList.remove('show'), 3200);
+  }
+
+  // ── Password visibility toggle ──────────────────────────
+  function togglePassword(inputId, btn) {
+    const input = document.getElementById(inputId);
+    const showing = input.type === 'text';
+    input.type = showing ? 'password' : 'text';
+    btn.innerHTML = showing ? '<i class="ri-eye-line"></i>' : '<i class="ri-eye-off-line"></i>';
+  }
+
+  // ── Form error helpers ───────────────────────────────────
+  function showFieldError(id, message) {
+    const el = document.getElementById(id);
+    el.textContent = message;
+    el.classList.remove('hidden');
+  }
+  function hideFieldError(id) {
+    document.getElementById(id).classList.add('hidden');
+  }
+
+  // ── Button loading state ─────────────────────────────────
+  function setButtonLoading(btnId, loading, idleHtml) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = loading;
+    btn.innerHTML = loading
+      ? '<i class="ri-loader-4-line spin"></i> Please wait...'
+      : idleHtml;
+  }
+
+  // ── Email validation ──────────────────────────────────────
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  // ── Farmer signup ────────────────────────────────────────
+  function handleFarmerSignup() {
+    hideFieldError('fs-error');
+    const name = document.getElementById('fs-name').value.trim();
+    const email = document.getElementById('fs-email').value.trim();
+    const farmName = document.getElementById('fs-farmname').value.trim();
+    const location = document.getElementById('fs-location').value.trim();
+    const phone = document.getElementById('fs-phone').value.trim();
+    const password = document.getElementById('fs-password').value;
+    const terms = document.getElementById('fs-terms').checked;
+
+    if (!name || !email || !farmName || !location || !phone || !password) {
+      showFieldError('fs-error', 'Please fill in all fields.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      showFieldError('fs-error', 'Please enter a valid email address.');
+      return;
+    }
+    if (password.length < 8) {
+      showFieldError('fs-error', 'Password must be at least 8 characters.');
+      return;
+    }
+    if (!terms) {
+      showFieldError('fs-error', 'Please agree to the Terms of Service to continue.');
+      return;
+    }
+
+    const idle = 'Create Farmer Account <i class="ri-arrow-right-line"></i>';
+    setButtonLoading('fs-submit-btn', true, idle);
+
+    setTimeout(() => {
+      setButtonLoading('fs-submit-btn', false, idle);
+      window.mockUser = { name, email, farmName, location, phone, role: 'farmer' };
+      showToast(`Welcome, ${name.split(' ')[0]}! Let's verify your farm.`);
+      startFarmerOnboarding();
+    }, 1400);
+  }
+
+  // ── Buyer signup ─────────────────────────────────────────
+  function handleBuyerSignup() {
+    hideFieldError('bs-error');
+    const name = document.getElementById('bs-name').value.trim();
+    const email = document.getElementById('bs-email').value.trim();
+    const phone = document.getElementById('bs-phone').value.trim();
+    const location = document.getElementById('bs-location').value.trim();
+    const password = document.getElementById('bs-password').value;
+    const terms = document.getElementById('bs-terms').checked;
+
+    if (!name || !email || !phone || !location || !password) {
+      showFieldError('bs-error', 'Please fill in all fields.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      showFieldError('bs-error', 'Please enter a valid email address.');
+      return;
+    }
+    if (password.length < 8) {
+      showFieldError('bs-error', 'Password must be at least 8 characters.');
+      return;
+    }
+    if (!terms) {
+      showFieldError('bs-error', 'Please agree to the Terms of Service to continue.');
+      return;
+    }
+
+    const idle = 'Create Buyer Account <i class="ri-arrow-right-line"></i>';
+    setButtonLoading('bs-submit-btn', true, idle);
+
+    setTimeout(() => {
+      setButtonLoading('bs-submit-btn', false, idle);
+      window.mockUser = { name, email, phone, location, role: 'buyer' };
+      showToast(`Welcome, ${name.split(' ')[0]}! Your buyer account is ready.`);
+      enterBuyerDashboard();
+    }, 1400);
+  }
+
+  // ── Login ─────────────────────────────────────────────────
+  let loginRole = 'buyer';
+
+  function setLoginRole(role) {
+    loginRole = role;
+    const isBuyer = role === 'buyer';
+
+    document.getElementById('login-tab-buyer').className = `flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${isBuyer ? 'bg-white text-[#0D631B] shadow-sm' : 'text-gray-500'}`;
+    document.getElementById('login-tab-farmer').className = `flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-semibold transition-colors ${!isBuyer ? 'bg-white text-[#0D631B] shadow-sm' : 'text-gray-500'}`;
+
+    document.getElementById('login-role-label').textContent = isBuyer ? 'Buyer' : 'Farmer';
+    document.getElementById('lg-submit-label').innerHTML = `Sign In as ${isBuyer ? 'Buyer' : 'Farmer'} <i class="ri-arrow-right-line"></i>`;
+    document.getElementById('login-switch-label').textContent = isBuyer ? 'Farmer' : 'Buyer';
+    document.getElementById('login-signup-link').setAttribute('onclick', `showPage('pg-signup-${isBuyer ? 'buyer' : 'farmer'}')`);
+  }
+
+  function handleLogin() {
+    hideFieldError('lg-error');
+    const email = document.getElementById('lg-email').value.trim();
+    const password = document.getElementById('lg-password').value;
+
+    if (!email || !password) {
+      showFieldError('lg-error', 'Please enter your email and password.');
+      return;
+    }
+    if (!isValidEmail(email)) {
+      showFieldError('lg-error', 'Please enter a valid email address.');
+      return;
+    }
+
+    const idle = `Sign In as ${loginRole === 'buyer' ? 'Buyer' : 'Farmer'} <i class="ri-arrow-right-line"></i>`;
+    setButtonLoading('lg-submit-btn', true, idle);
+    document.getElementById('lg-submit-label').outerHTML = `<span id="lg-submit-label">${idle}</span>`;
+
+    setTimeout(() => {
+      const btn = document.getElementById('lg-submit-btn');
+      btn.disabled = false;
+      btn.innerHTML = `<span id="lg-submit-label">${idle}</span>`;
+
+      showToast(`Welcome back! Signed in as ${loginRole === 'buyer' ? 'Buyer' : 'Farmer'}.`);
+
+      if (loginRole === 'farmer') {
+        window.mockUser = window.mockUser && window.mockUser.role === 'farmer'
+          ? window.mockUser
+          : { name: 'Ibrahim Musa', email, farmName: 'Musa Family Farms', location: 'Kano, Ungogo', phone: '+234 803 000 0000', role: 'farmer' };
+        enterFarmerDashboard();
+      } else {
+        window.mockUser = window.mockUser && window.mockUser.role === 'buyer'
+          ? window.mockUser
+          : { name: 'Chidi Nwosu', email, phone: '+234 805 000 0000', location: 'Lagos, Ikeja', role: 'buyer' };
+        enterBuyerDashboard();
+      }
+    }, 1200);
+  }
+
+  // ── Google OAuth (simulated) ─────────────────────────────
+  function handleGoogleAuth(role) {
+    showToast('Redirecting to Google… (simulated)');
+    setTimeout(() => {
+      if (role === 'farmer') {
+        window.mockUser = window.mockUser && window.mockUser.role === 'farmer'
+          ? window.mockUser
+          : { name: 'Ibrahim Musa', email: 'ibrahim.musa@gmail.com', farmName: 'Musa Family Farms', location: 'Kano, Ungogo', phone: '+234 803 000 0000', role: 'farmer' };
+        showToast('Signed in with Google!');
+        enterFarmerDashboard();
+      } else {
+        window.mockUser = window.mockUser && window.mockUser.role === 'buyer'
+          ? window.mockUser
+          : { name: 'Chidi Nwosu', email: 'chidi.nwosu@gmail.com', phone: '+234 805 000 0000', location: 'Lagos, Ikeja', role: 'buyer' };
+        showToast('Signed in with Google!');
+        enterBuyerDashboard();
+      }
+    }, 900);
+  }
+
+
+  // ══════════════════════════════════════════════════════
+  // FARMER ONBOARDING
+  // ══════════════════════════════════════════════════════
+  let onboardStep = 2;
+  let ninUploaded = false;
+  let selectedCrops = ['maize'];
+  let ownershipDocs = [];
+
+  function startFarmerOnboarding() {
+    onboardStep = 2;
+    ninUploaded = false;
+    selectedCrops = ['maize'];
+    ownershipDocs = [];
+
+    // Reset NIN upload UI
+    document.getElementById('ob-nin-empty').classList.remove('hidden');
+    document.getElementById('ob-nin-preview').classList.add('hidden');
+    document.getElementById('ob-nin-input').value = '';
+    hideFieldError('ob-nin-error');
+
+    // Reset liveness UI
+    const livenessBtn = document.getElementById('ob-liveness-btn');
+    livenessBtn.classList.remove('hidden');
+    livenessBtn.disabled = false;
+    livenessBtn.innerHTML = 'Start Liveness Check <i class="ri-arrow-right-line"></i>';
+    document.getElementById('ob-liveness-result').classList.add('hidden');
+
+    // Reset farm pin
+    document.getElementById('ob-pin-icon').classList.remove('text-red-400');
+    document.getElementById('ob-pin-icon').classList.add('text-white');
+    document.getElementById('ob-pin-text').textContent = 'Tap to Pin Location';
+
+    // Reset docs
+    renderOwnershipDocs();
+
+    renderOnboardStep();
+    showPage('pg-onboard-farmer');
+  }
+
+  function renderOnboardStep() {
+    // Step bar circles & labels (steps 2-4)
+    for (let i = 2; i <= 4; i++) {
+      const circle = document.getElementById(`ob-circle-${i}`);
+      const label = document.getElementById(`ob-label-${i}`);
+      if (onboardStep > i) {
+        circle.className = 'w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-colors bg-[#0D631B] border-[#0D631B] text-white';
+        circle.innerHTML = '<i class="ri-check-line"></i>';
+        label.className = 'text-xs font-semibold whitespace-nowrap text-gray-700';
+      } else if (onboardStep === i) {
+        circle.className = 'w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-colors bg-white border-[#0D631B] text-[#0D631B]';
+        circle.textContent = i;
+        label.className = 'text-xs font-semibold whitespace-nowrap text-[#0D631B]';
+      } else {
+        circle.className = 'w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm border-2 transition-colors bg-white border-gray-300 text-gray-400';
+        circle.textContent = i;
+        label.className = 'text-xs font-semibold whitespace-nowrap text-gray-400';
+      }
+    }
+    document.getElementById('ob-line-2').className = `w-12 sm:w-20 h-px mx-2 mb-5 flex-shrink-0 ${onboardStep > 2 ? 'bg-[#0D631B]' : 'bg-gray-300'}`;
+    document.getElementById('ob-line-3').className = `w-12 sm:w-20 h-px mx-2 mb-5 flex-shrink-0 ${onboardStep > 3 ? 'bg-[#0D631B]' : 'bg-gray-300'}`;
+
+    // Step content
+    document.getElementById('ob-step2').classList.toggle('hidden', onboardStep !== 2);
+    document.getElementById('ob-step3').classList.toggle('hidden', onboardStep !== 3);
+    document.getElementById('ob-step4').classList.toggle('hidden', onboardStep !== 4);
+
+    // Bottom bar
+    const bottomBar = document.getElementById('ob-bottom-bar');
+    bottomBar.classList.toggle('hidden', onboardStep === 4);
+
+    const backBtn = document.getElementById('ob-back-btn');
+    const nextBtn = document.getElementById('ob-next-btn');
+
+    if (onboardStep === 2) {
+      backBtn.innerHTML = "Skip for now, I'll do this later";
+      backBtn.className = 'text-sm text-gray-500 hover:text-gray-800 transition-colors';
+      backBtn.onclick = onboardSkip;
+      nextBtn.textContent = 'Continue to Verification';
+      nextBtn.className = 'px-8 py-3 rounded-xl text-white font-semibold text-sm transition-colors bg-[#0D631B] hover:bg-[#0a4f15]';
+      nextBtn.onclick = onboardNext;
+    } else if (onboardStep === 3) {
+      backBtn.innerHTML = 'Back';
+      backBtn.className = 'px-6 py-2.5 rounded-xl border-2 border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-50 transition-colors';
+      backBtn.onclick = onboardBack;
+      nextBtn.textContent = 'Continue to Review';
+      nextBtn.className = 'px-8 py-3 rounded-xl text-white font-semibold text-sm transition-colors bg-amber-500 hover:bg-amber-600';
+      nextBtn.onclick = onboardNext;
+    }
+
+    window.scrollTo(0, 0);
+  }
+
+  function onboardNext() {
+    if (onboardStep < 4) {
+      onboardStep++;
+      renderOnboardStep();
+    }
+  }
+  function onboardBack() {
+    if (onboardStep > 2) {
+      onboardStep--;
+      renderOnboardStep();
+    }
+  }
+  function onboardSkip() {
+    localStorage.setItem('hl_farmer_verified', 'false');
+    showToast('Skipped verification — you can complete this anytime from your profile.');
+    enterFarmerDashboard();
+  }
+
+  // ── NIN upload ────────────────────────────────────────
+  function handleNINUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    hideFieldError('ob-nin-error');
+
+    if (file.size > 5 * 1024 * 1024) {
+      showFieldError('ob-nin-error', 'File exceeds 5MB limit. Please choose a smaller image.');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      showFieldError('ob-nin-error', 'Only image files are accepted.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById('ob-nin-img').src = e.target.result;
+      document.getElementById('ob-nin-filename').textContent = file.name;
+      document.getElementById('ob-nin-empty').classList.add('hidden');
+      document.getElementById('ob-nin-preview').classList.remove('hidden');
+      ninUploaded = true;
+    };
+    reader.readAsDataURL(file);
+  }
+  function removeNIN() {
+    ninUploaded = false;
+    document.getElementById('ob-nin-empty').classList.remove('hidden');
+    document.getElementById('ob-nin-preview').classList.add('hidden');
+    document.getElementById('ob-nin-input').value = '';
+  }
+
+  // ── AI liveness check ────────────────────────────────────
+  function runLivenessCheck() {
+    const btn = document.getElementById('ob-liveness-btn');
+    btn.innerHTML = '<i class="ri-loader-4-line spin"></i> Scanning your face...';
+    btn.disabled = true;
+    setTimeout(() => {
+      btn.classList.add('hidden');
+      document.getElementById('ob-liveness-result').classList.remove('hidden');
+      showToast('Liveness check passed!');
+    }, 1800);
+  }
+
+  // ── Farm location pin ─────────────────────────────────────
+  function pinFarmLocation() {
+    document.getElementById('ob-pin-icon').classList.remove('text-white');
+    document.getElementById('ob-pin-icon').classList.add('text-red-400');
+    document.getElementById('ob-pin-text').textContent = 'Location Pinned ✓';
+  }
+
+  // ── Crop selection ─────────────────────────────────────────
+  function toggleCrop(id, btn) {
+    const idx = selectedCrops.indexOf(id);
+    if (idx > -1) {
+      selectedCrops.splice(idx, 1);
+      btn.className = 'flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-colors text-xs font-semibold border-gray-200 text-gray-600 hover:border-gray-300';
+    } else {
+      selectedCrops.push(id);
+      btn.className = 'flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border-2 transition-colors text-xs font-semibold border-[#0D631B] bg-green-50 text-[#0D631B]';
+    }
+  }
+
+  // ── Ownership documents ───────────────────────────────────
+  function formatFileSize(bytes) {
+    const kb = bytes / 1024;
+    return kb >= 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`;
+  }
+  function addOwnershipFiles(files) {
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png'];
+    Array.from(files).forEach((f) => {
+      if (f.size > 10 * 1024 * 1024) { showToast(`"${f.name}" exceeds 10MB limit.`, 'error'); return; }
+      if (!allowed.includes(f.type)) { showToast(`"${f.name}" is not a PDF, JPG, or PNG.`, 'error'); return; }
+      if (ownershipDocs.find((d) => d.name === f.name)) return;
+      ownershipDocs.push({ name: f.name, size: formatFileSize(f.size) });
+    });
+    renderOwnershipDocs();
+  }
+  function handleDocUpload(input) {
+    addOwnershipFiles(input.files);
+    input.value = '';
+  }
+  function handleDocDrop(e) {
+    e.preventDefault();
+    addOwnershipFiles(e.dataTransfer.files);
+  }
+  function removeDoc(name) {
+    ownershipDocs = ownershipDocs.filter((d) => d.name !== name);
+    renderOwnershipDocs();
+  }
+  function renderOwnershipDocs() {
+    const container = document.getElementById('ob-docs-list');
+    container.innerHTML = ownershipDocs.map((d) => `
+      <div class="flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-xl bg-green-50 border border-green-200 text-xs">
+        <i class="ri-file-line text-[#0D631B]"></i>
+        <span class="font-medium text-gray-800 max-w-[120px] truncate">${d.name}</span>
+        <span class="text-gray-400">${d.size}</span>
+        <button onclick="removeDoc('${d.name.replace(/'/g, "\\'")}')" class="text-gray-400 hover:text-red-500 transition-colors ml-1">
+          <i class="ri-close-line text-sm"></i>
+        </button>
+      </div>
+    `).join('');
+  }
+
+  // ── Onboarding completion ──────────────────────────────────
+  function onboardGoToDashboard() {
+    localStorage.setItem('hl_farmer_verified', 'true');
+    enterFarmerDashboard();
+  }
+  function onboardListProduct() {
+    localStorage.setItem('hl_farmer_verified', 'true');
+    enterFarmerDashboard();
+    openListProductModal();
+  }
+
+  // ══════════════════════════════════════════════════════
+  // SHARED MARKETPLACE MOCK DATA
+  // ══════════════════════════════════════════════════════
+  const MOCK_MARKETPLACE = [
+    { name: 'Fresh Tomatoes', price: 1200, unit: 'basket', location: 'Kano, Ungogo', category: 'Vegetables', img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?q=80&w=600&auto=format&fit=crop' },
+    { name: 'Yellow Maize', price: 35000, unit: 'bag', location: 'Kaduna, Zaria', category: 'Grains & Cereals', img: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?q=80&w=600&auto=format&fit=crop' },
+    { name: 'Sweet Potatoes', price: 800, unit: 'tuber', location: 'Benue, Makurdi', category: 'Tubers', img: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?q=80&w=600&auto=format&fit=crop' },
+    { name: 'Ripe Plantain', price: 2500, unit: 'bunch', location: 'Ogun, Abeokuta', category: 'Fruits', img: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?q=80&w=600&auto=format&fit=crop' },
+    { name: 'Cassava Tubers', price: 1500, unit: 'bag', location: 'Oyo, Ibadan', category: 'Tubers', img: 'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?q=80&w=600&auto=format&fit=crop' },
+    { name: 'Rice (Paddy)', price: 42000, unit: 'bag', location: 'Niger, Bida', category: 'Grains & Cereals', img: 'https://images.unsplash.com/photo-1592417817098-8fd3d9eb14a5?q=80&w=600&auto=format&fit=crop' },
+    { name: 'Cocoa Beans', price: 55000, unit: 'bag', location: 'Ondo, Akure', category: 'Other', img: 'https://images.unsplash.com/photo-1606312619070-d48b4c652a52?q=80&w=600&auto=format&fit=crop' },
+    { name: 'Cherry Peppers', price: 900, unit: 'basket', location: 'Plateau, Jos', category: 'Vegetables', img: 'https://images.unsplash.com/photo-1583119022894-919a68a3d0e3?q=80&w=600&auto=format&fit=crop' },
+  ];
+  const CATEGORY_STYLE = {
+    'Grains & Cereals': { bg: 'from-yellow-100 to-yellow-200', icon: 'ri-plant-line text-yellow-600' },
+    Tubers:             { bg: 'from-amber-100 to-amber-200',  icon: 'ri-leaf-line text-amber-600' },
+    Vegetables:         { bg: 'from-green-100 to-green-200',  icon: 'ri-seedling-line text-green-600' },
+    Fruits:             { bg: 'from-orange-100 to-orange-200',icon: 'ri-plant-line text-orange-500' },
+    Livestock:          { bg: 'from-stone-100 to-stone-200',  icon: 'ri-seedling-line text-stone-600' },
+    Legumes:            { bg: 'from-lime-100 to-lime-200',    icon: 'ri-leaf-line text-lime-600' },
+    Spices:             { bg: 'from-red-100 to-red-200',      icon: 'ri-leaf-line text-red-500' },
+    Other:              { bg: 'from-gray-100 to-gray-200',    icon: 'ri-box-3-line text-gray-500' },
+  };
+  const CATEGORY_IMG = {
+    'Grains & Cereals': 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?q=80&w=600&auto=format&fit=crop',
+    Tubers:             'https://images.unsplash.com/photo-1518977676601-b53f82aba655?q=80&w=600&auto=format&fit=crop',
+    Vegetables:         'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?q=80&w=600&auto=format&fit=crop',
+    Fruits:             'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?q=80&w=600&auto=format&fit=crop',
+    Livestock:          'https://images.unsplash.com/photo-1500595046743-cd271d694d30?q=80&w=600&auto=format&fit=crop',
+    Legumes:            'https://images.unsplash.com/photo-1515543904379-3d757afe72e4?q=80&w=600&auto=format&fit=crop',
+    Spices:             'https://images.unsplash.com/photo-1583119022894-919a68a3d0e3?q=80&w=600&auto=format&fit=crop',
+    Other:              'https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600&auto=format&fit=crop',
+  };
+
+  // ══════════════════════════════════════════════════════
+  // FARMER DASHBOARD
+  // ══════════════════════════════════════════════════════
+  const FARMER_NAV = [
+    { id: 'dashboard',   icon: 'ri-dashboard-line',     label: 'Dashboard' },
+    { id: 'cropdoctor',  icon: 'ri-leaf-line',          label: 'AI Crop Doctor' },
+    { id: 'farm',        icon: 'ri-store-2-line',       label: 'My Farm' },
+    { id: 'marketplace', icon: 'ri-shopping-bag-3-line',label: 'Marketplace' },
+    { id: 'orders',      icon: 'ri-file-list-3-line',   label: 'Orders' },
+    { id: 'wallet',      icon: 'ri-wallet-3-line',      label: 'Wallet' },
+    { id: 'profile',     icon: 'ri-user-line',          label: 'Profile' },
+  ];
+  const FARMER_TITLES = {
+    dashboard: 'Dashboard', cropdoctor: 'AI Crop Doctor', farm: 'My Farm',
+    marketplace: 'Marketplace', orders: 'Orders', wallet: 'Wallet', profile: 'Profile',
+  };
+
+  let farmerView = 'dashboard';
+  let farmerListings = [];
+
+  function renderFarmerNav() {
+    const items = FARMER_NAV.map((item) => {
+      const active = farmerView === item.id;
+      const cls = active
+        ? 'bg-green-50 text-[#0D631B]'
+        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800';
+      return `
+        <button onclick="showFarmerView('${item.id}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${cls}">
+          <i class="${item.icon} text-lg"></i> ${item.label}
+        </button>`;
+    }).join('');
+    document.getElementById('farmer-nav-desktop').innerHTML = items;
+    document.getElementById('farmer-nav-mobile').innerHTML = items;
+  }
+
+  function toggleFarmerSidebar() {
+    document.getElementById('farmer-sidebar-mobile').classList.toggle('hidden');
+  }
+
+  function showFarmerView(view) {
+    farmerView = view;
+    document.querySelectorAll('.fview').forEach((v) => v.classList.add('hidden'));
+    document.getElementById(`fview-${view}`).classList.remove('hidden');
+    document.getElementById('farmer-view-title').textContent = FARMER_TITLES[view];
+    renderFarmerNav();
+    document.getElementById('farmer-sidebar-mobile').classList.add('hidden');
+
+    if (view === 'farm') renderFarmListings();
+    if (view === 'marketplace') renderFarmerMarketplace();
+    window.scrollTo(0, 0);
+  }
+
+  function enterFarmerDashboard() {
+    const u = window.mockUser || { name: 'Ibrahim Musa', email: 'ibrahim.musa@gmail.com', farmName: 'Musa Family Farms', location: 'Kano, Ungogo', phone: '+234 803 000 0000', role: 'farmer' };
+    const firstName = u.name.split(' ')[0];
+
+    document.getElementById('fdash-name').textContent = firstName;
+    document.getElementById('farmer-name-label').textContent = u.name;
+    document.getElementById('farmer-farm-label').textContent = u.farmName || 'Farm';
+    document.getElementById('profile-name').textContent = u.name;
+    document.getElementById('profile-email').textContent = u.email;
+    document.getElementById('profile-phone').textContent = u.phone || '—';
+    document.getElementById('profile-farm').textContent = u.farmName || '—';
+    document.getElementById('profile-location').textContent = u.location || '—';
+
+    if (farmerListings.length === 0) {
+      farmerListings = [
+        { name: 'Fresh Tomatoes', category: 'Vegetables', price: 1200, unit: 'basket', quantity: 45, img: 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?q=80&w=600&auto=format&fit=crop' },
+        { name: 'Yellow Maize', category: 'Grains & Cereals', price: 35000, unit: 'bag', quantity: 12, img: 'https://images.unsplash.com/photo-1551754655-cd27e38d2076?q=80&w=600&auto=format&fit=crop' },
+      ];
+    }
+
+    farmerView = 'dashboard';
+    renderFarmerNav();
+    showFarmerView('dashboard');
+    showPage('pg-farmer-dashboard');
+  }
+
+  function logoutToLanding() {
+    window.mockUser = null;
+    showToast('You have been logged out.');
+    showPage('pg-landing');
+  }
+
+  // ── My Farm: produce listings ──────────────────────────────
+  function renderFarmListings() {
+    const grid = document.getElementById('farm-listings-grid');
+    if (farmerListings.length === 0) {
+      grid.innerHTML = `
+        <div class="sm:col-span-2 lg:col-span-3 flex flex-col items-center justify-center h-40 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400">
+          <i class="ri-box-3-line text-2xl mb-2"></i>
+          <p class="text-sm">No listings yet</p>
+          <button onclick="openListProductModal()" class="text-[#0D631B] text-xs font-semibold mt-1 hover:underline">+ Create your first listing</button>
+        </div>`;
+      return;
+    }
+    grid.innerHTML = farmerListings.map((item, i) => `
+      <div class="bg-white rounded-2xl overflow-hidden border border-[#BFCABA] hover:-translate-y-1 transition-transform">
+        <div class="relative h-44">
+          <div class="absolute top-3 right-3 z-10 flex items-center gap-1 bg-[#0D631B] text-white text-xs px-2 py-0.5 rounded-full">
+            <i class="ri-checkbox-circle-fill text-xs"></i> ACTIVE
+          </div>
+          <img src="${item.img}" alt="${item.name}" class="w-full h-full object-cover" onerror="this.src='${CATEGORY_IMG['Other']}'" />
+        </div>
+        <div class="p-4">
+          <div class="flex items-center justify-between mb-2">
+            <p class="font-medium text-gray-900 text-sm">${item.name}</p>
+            <p class="text-[#0D631B] text-sm font-semibold">₦${item.price.toLocaleString('en-NG')}/${item.unit}</p>
+          </div>
+          <p class="text-xs text-gray-400 flex items-center gap-1 mb-3"><i class="ri-inbox-archive-line"></i> ${item.quantity} ${item.unit}s remaining</p>
+          <button onclick="removeFarmListing(${i})" class="text-xs text-red-500 font-medium hover:underline">Remove Listing</button>
+        </div>
+      </div>
+    `).join('');
+  }
+  function removeFarmListing(i) {
+    farmerListings.splice(i, 1);
+    renderFarmListings();
+    showToast('Listing removed.');
+  }
+
+  // ── List Product modal ─────────────────────────────────────
+  function openListProductModal() {
+    document.getElementById('lp-name').value = '';
+    document.getElementById('lp-price').value = '';
+    document.getElementById('lp-quantity').value = '';
+    document.getElementById('lp-description').value = '';
+    document.getElementById('lp-category').value = 'Vegetables';
+    document.getElementById('lp-unit').value = 'basket';
+    hideFieldError('lp-error');
+    const modal = document.getElementById('list-product-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+  function closeListProductModal() {
+    const modal = document.getElementById('list-product-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+  function submitListProduct() {
+    hideFieldError('lp-error');
+    const name = document.getElementById('lp-name').value.trim();
+    const category = document.getElementById('lp-category').value;
+    const unit = document.getElementById('lp-unit').value;
+    const price = parseFloat(document.getElementById('lp-price').value);
+    const quantity = parseFloat(document.getElementById('lp-quantity').value);
+
+    if (!name) { showFieldError('lp-error', 'Please enter a product name.'); return; }
+    if (!price || price <= 0) { showFieldError('lp-error', 'Please enter a valid price.'); return; }
+    if (!quantity || quantity <= 0) { showFieldError('lp-error', 'Please enter a valid quantity.'); return; }
+
+    const idle = 'Publish Listing';
+    setButtonLoading('lp-submit-btn', true, idle);
+
+    setTimeout(() => {
+      setButtonLoading('lp-submit-btn', false, idle);
+      farmerListings.unshift({ name, category, price, unit, quantity, img: CATEGORY_IMG[category] || CATEGORY_IMG['Other'] });
+      closeListProductModal();
+      renderFarmListings();
+      showFarmerView('farm');
+      showToast(`"${name}" has been listed on the marketplace!`);
+    }, 1000);
+  }
+
+  // ── Marketplace browse (farmer view) ───────────────────────
+  function renderFarmerMarketplace() {
+    const grid = document.getElementById('farmer-marketplace-grid');
+    grid.innerHTML = MOCK_MARKETPLACE.map((p) => {
+      const style = CATEGORY_STYLE[p.category] || CATEGORY_STYLE['Other'];
+      return `
+        <div class="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:-translate-y-1 transition-transform">
+          <div class="relative h-36 overflow-hidden flex items-center justify-center bg-gradient-to-br ${style.bg}">
+            <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-[#0D631B] text-white text-xs px-2 py-0.5 rounded-full">
+              <i class="ri-checkbox-circle-fill text-xs"></i> ACTIVE
+            </div>
+            <img src="${p.img}" alt="${p.name}" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+          </div>
+          <div class="p-3">
+            <div class="flex items-center justify-between mb-1">
+              <p class="font-semibold text-gray-900 text-sm">${p.name}</p>
+              <p class="text-[#0D631B] font-bold text-sm">₦${p.price.toLocaleString('en-NG')}</p>
+            </div>
+            <p class="text-gray-400 text-xs flex items-center gap-1"><i class="ri-map-pin-line text-xs"></i> ${p.location}</p>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── AI Crop Doctor ──────────────────────────────────────────
+  function runCropDoctor(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      document.getElementById('cd-upload-empty').classList.add('hidden');
+      const scanning = document.getElementById('cd-scanning');
+      scanning.classList.remove('hidden');
+      scanning.classList.add('flex', 'flex-col');
+      setTimeout(() => {
+        scanning.classList.add('hidden');
+        scanning.classList.remove('flex', 'flex-col');
+        document.getElementById('cd-result-img').src = e.target.result;
+        document.getElementById('cd-result').classList.remove('hidden');
+      }, 1800);
+    };
+    reader.readAsDataURL(file);
+  }
+  function resetCropDoctor() {
+    document.getElementById('cd-result').classList.add('hidden');
+    document.getElementById('cd-upload-empty').classList.remove('hidden');
+  }
+
+  // ── Orders: confirm handover ────────────────────────────────
+  function confirmOrderHandover(orderId, btn) {
+    const row = btn.closest('tr');
+    const statusCell = row.children[5];
+    statusCell.innerHTML = `<span class="flex items-center gap-2 text-gray-600 text-xs"><span class="w-2 h-2 rounded-full bg-green-500"></span> Funds Released</span>`;
+    row.children[6].innerHTML = `<span class="text-gray-300 text-xs">—</span>`;
+    showToast('Handover confirmed — funds released to your wallet!');
+  }
+
+  // ── Wallet: withdraw ─────────────────────────────────────────
+  function handleWithdraw(btn) {
+    const amount = document.getElementById('wallet-amount').value.trim();
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      showToast('Please enter a valid withdrawal amount.', 'error');
+      return;
+    }
+    const idle = '<i class="ri-bank-line"></i> Withdraw Funds';
+    setButtonLoading('wallet-withdraw-btn', true, idle);
+    setTimeout(() => {
+      setButtonLoading('wallet-withdraw-btn', false, idle);
+      document.getElementById('wallet-amount').value = '';
+      showToast(`Withdrawal request for ₦${parseFloat(amount).toLocaleString('en-NG')} submitted!`);
+    }, 1200);
+  }
+
+  // ══════════════════════════════════════════════════════
+  // BUYER DASHBOARD
+  // ══════════════════════════════════════════════════════
+  const BUYER_NAV = [
+    { id: 'dashboard',   icon: 'ri-dashboard-line', label: 'Dashboard' },
+    { id: 'marketplace', icon: 'ri-store-2-line',   label: 'Marketplace' },
+    { id: 'orders',      icon: 'ri-file-list-3-line', label: 'My Orders' },
+    { id: 'wallet',      icon: 'ri-wallet-3-line',  label: 'Wallet' },
+    { id: 'profile',     icon: 'ri-user-line',      label: 'Profile' },
+  ];
+  const BUYER_TITLES = {
+    dashboard: 'Dashboard', marketplace: 'Marketplace', orders: 'My Orders', wallet: 'Wallet', profile: 'Profile',
+  };
+  const BUYER_ORDER_STATUS = {
+    pending_payment:   { label: 'Awaiting Payment',  icon: 'ri-time-line',            badge: 'bg-red-100 text-red-700' },
+    payment_confirmed: { label: 'Payment Confirmed', icon: 'ri-secure-payment-line',  badge: 'bg-blue-100 text-blue-700' },
+    processing:        { label: 'In Escrow',         icon: 'ri-lock-line',            badge: 'bg-blue-100 text-blue-700' },
+    ready_for_pickup:  { label: 'Ready for Pickup',  icon: 'ri-store-2-line',         badge: 'bg-purple-100 text-purple-700' },
+    completed:         { label: 'Delivered',         icon: 'ri-checkbox-circle-line', badge: 'bg-green-100 text-green-700' },
+    cancelled:         { label: 'Cancelled',         icon: 'ri-close-circle-line',    badge: 'bg-gray-100 text-gray-500' },
+    disputed:          { label: 'Disputed',          icon: 'ri-alert-line',           badge: 'bg-orange-100 text-orange-700' },
+  };
+
+  let buyerView = 'dashboard';
+  let buyerOrders = [];
+  let buyerWalletBalance = 45000;
+  let cart = []; // { idx: index into MOCK_MARKETPLACE, qty }
+  let marketFilter = 'All';
+
+  function renderBuyerNav() {
+    const items = BUYER_NAV.map((item) => {
+      const active = buyerView === item.id;
+      const cls = active
+        ? 'bg-green-50 text-[#0D631B]'
+        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-800';
+      return `
+        <button onclick="showBuyerView('${item.id}')" class="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${cls}">
+          <i class="${item.icon} text-lg"></i> ${item.label}
+        </button>`;
+    }).join('');
+    document.getElementById('buyer-nav-desktop').innerHTML = items;
+    document.getElementById('buyer-nav-mobile').innerHTML = items;
+  }
+
+  function toggleBuyerSidebar() {
+    document.getElementById('buyer-sidebar-mobile').classList.toggle('hidden');
+  }
+
+  function showBuyerView(view) {
+    buyerView = view;
+    document.querySelectorAll('.bview').forEach((v) => v.classList.add('hidden'));
+    document.getElementById(`bview-${view}`).classList.remove('hidden');
+    document.getElementById('buyer-view-title').textContent = BUYER_TITLES[view];
+    renderBuyerNav();
+    document.getElementById('buyer-sidebar-mobile').classList.add('hidden');
+
+    if (view === 'marketplace') renderBuyerMarketplace();
+    if (view === 'orders') renderBuyerOrdersTable();
+    window.scrollTo(0, 0);
+  }
+
+  function enterBuyerDashboard() {
+    const u = window.mockUser || { name: 'Chidi Nwosu', email: 'chidi.nwosu@gmail.com', phone: '+234 805 000 0000', location: 'Lagos, Ikeja', role: 'buyer' };
+    const firstName = u.name.split(' ')[0];
+
+    document.getElementById('bdash-name').textContent = firstName;
+    document.getElementById('buyer-name-label').textContent = u.name;
+    document.getElementById('bprofile-name').textContent = u.name;
+    document.getElementById('bprofile-email').textContent = u.email;
+    document.getElementById('bprofile-phone').textContent = u.phone || '—';
+    document.getElementById('bprofile-location').textContent = u.location || '—';
+
+    if (buyerOrders.length === 0) {
+      buyerOrders = [
+        { id: 'X1Y2Z3A4', farm: 'Musa Family Farms', product: 'Yellow Maize', qty: 2, unit: 'bag', amount: 70000, status: 'processing', date: 'Today' },
+        { id: 'B5C6D7E8', farm: 'Green Valley Farms', product: 'Fresh Tomatoes', qty: 5, unit: 'basket', amount: 6000, status: 'completed', date: '3d ago' },
+      ];
+    }
+
+    renderBuyerDashboardListings();
+    renderBuyerDashboardOrders();
+    renderBuyerStats();
+    renderCart();
+
+    buyerView = 'dashboard';
+    renderBuyerNav();
+    showBuyerView('dashboard');
+    showPage('pg-buyer-dashboard');
+  }
+
+  function renderBuyerStats() {
+    const completed = buyerOrders.filter((o) => o.status === 'completed');
+    const totalSpent = completed.reduce((s, o) => s + o.amount, 0);
+    const active = buyerOrders.filter((o) => ['processing', 'pending_payment'].includes(o.status));
+
+    document.getElementById('bstat-spent').textContent = `₦${totalSpent.toLocaleString('en-NG')}`;
+    document.getElementById('bstat-spent-badge').textContent = `${completed.length} completed order${completed.length !== 1 ? 's' : ''}`;
+    document.getElementById('bstat-escrow').textContent = `${active.length} Order${active.length !== 1 ? 's' : ''}`;
+
+    const balanceStr = `₦${buyerWalletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+    document.getElementById('bstat-wallet').textContent = balanceStr;
+    document.getElementById('bwallet-balance').textContent = balanceStr;
+    document.getElementById('bwallet-spent').textContent = `₦${totalSpent.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+    document.getElementById('checkout-wallet-balance').textContent = balanceStr;
+  }
+
+  // ── Recent orders preview (dashboard) ──────────────────────
+  function renderBuyerDashboardOrders() {
+    const container = document.getElementById('bdash-orders-list');
+    if (buyerOrders.length === 0) {
+      container.innerHTML = `<div class="flex flex-col items-center justify-center h-20 text-gray-400 text-sm">
+        <i class="ri-inbox-line text-xl mb-1"></i> No orders yet — start shopping in the marketplace.
+      </div>`;
+      return;
+    }
+    container.innerHTML = buyerOrders.slice(0, 4).map((o) => {
+      const st = BUYER_ORDER_STATUS[o.status];
+      return `
+        <div class="flex items-center gap-3 md:gap-4 py-3.5 border-b border-gray-50 last:border-0">
+          <div class="w-10 h-10 rounded-xl bg-stone-100 flex items-center justify-center flex-shrink-0">
+            <i class="ri-box-3-line text-stone-500"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">${o.product} (${o.qty} ${o.unit})</p>
+            <p class="text-xs text-gray-400 mt-0.5 truncate">${o.farm} · ${o.date}</p>
+          </div>
+          <div class="flex items-center gap-2 flex-shrink-0">
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1 ${st.badge}">
+              <i class="${st.icon}"></i> ${st.label}
+            </span>
+            <span class="text-sm font-semibold text-gray-700">₦${o.amount.toLocaleString('en-NG')}</span>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Orders view (full table) ───────────────────────────────
+  function renderBuyerOrdersTable() {
+    const tbody = document.getElementById('border-table-body');
+    if (buyerOrders.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-gray-400 text-sm">
+        <i class="ri-inbox-line text-xl mb-1 block"></i> No orders yet — start shopping in the marketplace.
+      </td></tr>`;
+      return;
+    }
+    tbody.innerHTML = buyerOrders.map((o) => {
+      const st = BUYER_ORDER_STATUS[o.status];
+      return `
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 md:px-6 py-4 font-medium text-[#0D631B] text-xs">#${o.id}</td>
+          <td class="px-4 md:px-6 py-4 text-gray-700">${o.farm}</td>
+          <td class="px-4 md:px-6 py-4 text-gray-600">${o.product} (${o.qty} ${o.unit})</td>
+          <td class="px-4 md:px-6 py-4 font-semibold text-gray-900">₦${o.amount.toLocaleString('en-NG')}</td>
+          <td class="px-4 md:px-6 py-4 text-gray-500">${o.date}</td>
+          <td class="px-4 md:px-6 py-4">
+            <span class="px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1 ${st.badge}">
+              <i class="${st.icon}"></i> ${st.label}
+            </span>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  // ── Marketplace card builder ───────────────────────────────
+  function buildMarketCard(p, idx) {
+    const style = CATEGORY_STYLE[p.category] || CATEGORY_STYLE['Other'];
+    const inCart = cart.find((c) => c.idx === idx);
+    return `
+      <div class="bg-white rounded-2xl overflow-hidden border border-gray-100 hover:-translate-y-1 transition-transform">
+        <div class="relative h-36 overflow-hidden flex items-center justify-center bg-gradient-to-br ${style.bg}">
+          <div class="absolute top-2 right-2 z-10 flex items-center gap-1 bg-[#0D631B] text-white text-xs px-2 py-0.5 rounded-full">
+            <i class="ri-checkbox-circle-fill text-xs"></i> ACTIVE
+          </div>
+          <img src="${p.img}" alt="${p.name}" class="w-full h-full object-cover" onerror="this.style.display='none'" />
+        </div>
+        <div class="p-3">
+          <div class="flex items-center justify-between mb-1">
+            <p class="font-semibold text-gray-900 text-sm">${p.name}</p>
+            <p class="text-[#0D631B] font-bold text-sm">₦${p.price.toLocaleString('en-NG')}</p>
+          </div>
+          <p class="text-gray-400 text-xs flex items-center gap-1 mb-3"><i class="ri-map-pin-line text-xs"></i> ${p.location}</p>
+          <button id="add-cart-${idx}" onclick="addToCart(${idx})" class="w-full py-2 rounded-xl text-xs font-medium transition-colors flex items-center justify-center gap-1 ${inCart ? 'bg-green-100 text-green-700' : 'bg-[#0D631B] text-white hover:bg-[#0a4f15]'}">
+            ${inCart ? '<i class="ri-check-line"></i> Added!' : 'Add to Cart'}
+          </button>
+        </div>
+      </div>`;
+  }
+
+  function renderBuyerDashboardListings() {
+    const grid = document.getElementById('bdash-listings-grid');
+    grid.innerHTML = MOCK_MARKETPLACE.slice(0, 4).map((p, idx) => buildMarketCard(p, idx)).join('');
+  }
+
+  function renderBuyerMarketplace() {
+    const categories = ['All', ...new Set(MOCK_MARKETPLACE.map((p) => p.category))];
+    document.getElementById('bmarket-filters').innerHTML = categories.map((c) => `
+      <button onclick="filterMarket('${c}')" class="px-4 py-2 rounded-full text-sm font-medium transition-colors ${marketFilter === c ? 'bg-[#0D631B] text-white' : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'}">${c}</button>
+    `).join('');
+
+    const grid = document.getElementById('bmarket-grid');
+    const items = MOCK_MARKETPLACE
+      .map((p, idx) => ({ p, idx }))
+      .filter(({ p }) => marketFilter === 'All' || p.category === marketFilter);
+
+    if (items.length === 0) {
+      grid.innerHTML = `<div class="sm:col-span-2 lg:col-span-4 flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-200 rounded-2xl text-gray-400 text-sm">
+        <i class="ri-store-line text-2xl mb-1"></i> No listings in this category yet.
+      </div>`;
+      return;
+    }
+    grid.innerHTML = items.map(({ p, idx }) => buildMarketCard(p, idx)).join('');
+  }
+
+  function filterMarket(category) {
+    marketFilter = category;
+    renderBuyerMarketplace();
+  }
+
+  // ── Cart ────────────────────────────────────────────────────
+  function addToCart(idx) {
+    const existing = cart.find((c) => c.idx === idx);
+    if (existing) {
+      existing.qty += 1;
+    } else {
+      cart.push({ idx, qty: 1 });
+    }
+    renderCart();
+    refreshMarketCards();
+    showToast(`${MOCK_MARKETPLACE[idx].name} added to cart!`);
+  }
+
+  function refreshMarketCards() {
+    if (buyerView === 'marketplace') renderBuyerMarketplace();
+    if (buyerView === 'dashboard') renderBuyerDashboardListings();
+  }
+
+  function updateCartQty(cartIndex, delta) {
+    const entry = cart[cartIndex];
+    entry.qty += delta;
+    if (entry.qty <= 0) cart.splice(cartIndex, 1);
+    renderCart();
+    refreshMarketCards();
+  }
+
+  function removeFromCart(cartIndex) {
+    cart.splice(cartIndex, 1);
+    renderCart();
+    refreshMarketCards();
+  }
+
+  function cartTotal() {
+    return cart.reduce((sum, c) => sum + MOCK_MARKETPLACE[c.idx].price * c.qty, 0);
+  }
+
+  function renderCart() {
+    const container = document.getElementById('cart-items');
+    const totalItems = cart.reduce((s, c) => s + c.qty, 0);
+
+    // Badge
+    const badge = document.getElementById('cart-badge');
+    if (totalItems > 0) {
+      badge.textContent = totalItems;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+
+    // Dashboard banner link
+    const link = document.getElementById('bdash-cart-link');
+    if (totalItems > 0) {
+      link.classList.remove('hidden');
+      link.classList.add('flex');
+      document.getElementById('bdash-cart-count').textContent = totalItems;
+    } else {
+      link.classList.add('hidden');
+      link.classList.remove('flex');
+    }
+
+    // Items list
+    if (cart.length === 0) {
+      container.innerHTML = `<div class="flex flex-col items-center justify-center h-full text-gray-400 text-sm py-10">
+        <i class="ri-shopping-cart-line text-3xl mb-2"></i> Your cart is empty.
+      </div>`;
+    } else {
+      container.innerHTML = cart.map((c, i) => {
+        const p = MOCK_MARKETPLACE[c.idx];
+        return `
+          <div class="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
+            <img src="${p.img}" alt="${p.name}" class="w-14 h-14 rounded-lg object-cover flex-shrink-0" onerror="this.style.visibility='hidden'" />
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-gray-900 truncate">${p.name}</p>
+              <p class="text-xs text-gray-400">₦${p.price.toLocaleString('en-NG')} / ${p.unit}</p>
+              <div class="flex items-center gap-2 mt-1.5">
+                <button onclick="updateCartQty(${i}, -1)" class="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><i class="ri-subtract-line text-xs"></i></button>
+                <span class="text-sm font-medium w-6 text-center">${c.qty}</span>
+                <button onclick="updateCartQty(${i}, 1)" class="w-6 h-6 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"><i class="ri-add-line text-xs"></i></button>
+              </div>
+            </div>
+            <div class="flex flex-col items-end gap-2 flex-shrink-0">
+              <p class="text-sm font-bold text-[#0D631B]">₦${(p.price * c.qty).toLocaleString('en-NG')}</p>
+              <button onclick="removeFromCart(${i})" class="text-xs text-red-500 hover:underline">Remove</button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    const total = cartTotal();
+    document.getElementById('cart-total').textContent = `₦${total.toLocaleString('en-NG')}`;
+    document.getElementById('cart-checkout-btn').disabled = cart.length === 0;
+  }
+
+  function toggleCartDrawer() {
+    renderCart();
+    document.getElementById('cart-drawer').classList.toggle('hidden');
+  }
+
+  // ── Checkout ────────────────────────────────────────────────
+  function openCheckout() {
+    if (cart.length === 0) return;
+    document.getElementById('checkout-items').innerHTML = cart.map((c) => {
+      const p = MOCK_MARKETPLACE[c.idx];
+      return `<div class="flex items-center justify-between text-sm">
+        <span class="text-gray-700">${p.name} <span class="text-gray-400">× ${c.qty}</span></span>
+        <span class="font-medium text-gray-900">₦${(p.price * c.qty).toLocaleString('en-NG')}</span>
+      </div>`;
+    }).join('');
+    document.getElementById('checkout-total').textContent = `₦${cartTotal().toLocaleString('en-NG')}`;
+    document.getElementById('checkout-wallet-balance').textContent = `₦${buyerWalletBalance.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+    hideFieldError('checkout-error');
+
+    document.getElementById('checkout-summary-view').classList.remove('hidden');
+    const success = document.getElementById('checkout-success-view');
+    success.classList.add('hidden');
+    success.classList.remove('flex');
+
+    const modal = document.getElementById('checkout-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  function closeCheckout() {
+    const modal = document.getElementById('checkout-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  function confirmCheckout() {
+    hideFieldError('checkout-error');
+    const total = cartTotal();
+    if (total > buyerWalletBalance) {
+      showFieldError('checkout-error', 'Insufficient wallet balance. Please top up your wallet first.');
+      return;
+    }
+
+    const idle = '<i class="ri-lock-line"></i> Pay &amp; Place Order';
+    setButtonLoading('checkout-pay-btn', true, idle);
+
+    setTimeout(() => {
+      setButtonLoading('checkout-pay-btn', false, idle);
+      buyerWalletBalance -= total;
+
+      cart.forEach((c) => {
+        const p = MOCK_MARKETPLACE[c.idx];
+        buyerOrders.unshift({
+          id: Math.random().toString(36).slice(2, 10).toUpperCase(),
+          farm: 'Verified Farm Partner',
+          product: p.name,
+          qty: c.qty,
+          unit: p.unit,
+          amount: p.price * c.qty,
+          status: 'processing',
+          date: 'Today',
+        });
+      });
+
+      cart = [];
+      renderCart();
+      renderBuyerStats();
+      renderBuyerDashboardOrders();
+      refreshMarketCards();
+
+      document.getElementById('checkout-summary-view').classList.add('hidden');
+      const success = document.getElementById('checkout-success-view');
+      success.classList.remove('hidden');
+      success.classList.add('flex', 'flex-col');
+
+      document.getElementById('cart-drawer').classList.add('hidden');
+      showToast('Order placed! Funds secured in escrow.');
+    }, 1400);
+  }
+
+  // ── Wallet: fund ──────────────────────────────────────────────
+  function handleFundWallet(btn) {
+    const amount = document.getElementById('bwallet-amount').value.trim();
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      showToast('Please enter a valid amount.', 'error');
+      return;
+    }
+    const idle = '<i class="ri-bank-card-line"></i> Fund Wallet';
+    setButtonLoading('bwallet-fund-btn', true, idle);
+    setTimeout(() => {
+      setButtonLoading('bwallet-fund-btn', false, idle);
+      buyerWalletBalance += parseFloat(amount);
+      document.getElementById('bwallet-amount').value = '';
+      renderBuyerStats();
+      showToast(`₦${parseFloat(amount).toLocaleString('en-NG')} added to your wallet!`);
+    }, 1200);
+  }
+</script>
+
+</body>
+</html>
