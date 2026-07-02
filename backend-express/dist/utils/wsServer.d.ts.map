@@ -1,1 +1,0 @@
-{"version":3,"file":"wsServer.d.ts","sourceRoot":"","sources":["../../src/utils/wsServer.ts"],"names":[],"mappings":"AAAA,OAAO,EAAmB,SAAS,EAAE,MAAM,IAAI,CAAC;AAChD,OAAO,KAAK,EAAE,MAAM,EAAE,MAAM,MAAM,CAAC;AAQnC,wBAAgB,YAAY,CAAC,MAAM,EAAE,MAAM,qFAqC1C;AAED,wBAAgB,UAAU,CAAC,MAAM,EAAE,MAAM,EAAE,IAAI,EAAE,MAAM,QAOtD"}

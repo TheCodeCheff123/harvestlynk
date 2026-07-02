@@ -3,3 +3,4 @@ PROJECT_CONTEXT.md
 .env.local
 .env
 .claude
+dist 

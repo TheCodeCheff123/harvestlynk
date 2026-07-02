@@ -1,1 +1,0 @@
-{"version":3,"file":"ratings.controller.d.ts","sourceRoot":"","sources":["../../src/controllers/ratings.controller.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,QAAQ,EAAE,MAAM,SAAS,CAAC;AAKjD,OAAO,KAAK,EAAE,WAAW,EAAE,MAAM,uBAAuB,CAAC;AAUzD,wBAAsB,SAAS,CAAC,GAAG,EAAE,WAAW,EAAE,GAAG,EAAE,QAAQ,iBAuD9D;AAED,wBAAsB,gBAAgB,CAAC,GAAG,EAAE,OAAO,EAAE,GAAG,EAAE,QAAQ,iBAsCjE"}
