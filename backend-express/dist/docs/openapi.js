@@ -5,9 +5,7 @@ const spec = {
         version: "1.0.0",
         description: "Backend API for the HarvestLynk agri-marketplace platform. Supports farmer and buyer flows including authentication, listings, orders, wallet, scans, and notifications.",
     },
-    servers: [
-        { url: "http://localhost:4000", description: "Local dev" },
-    ],
+    servers: [{ url: "http://localhost:4000", description: "Local dev" }],
     components: {
         securitySchemes: {
             cookieAuth: {
@@ -34,7 +32,10 @@ const spec = {
                 type: "object",
                 properties: {
                     error: { type: "string", example: "Validation failed" },
-                    details: { type: "object", additionalProperties: { type: "array", items: { type: "string" } } },
+                    details: {
+                        type: "object",
+                        additionalProperties: { type: "array", items: { type: "string" } },
+                    },
                 },
             },
             User: {
@@ -81,14 +82,20 @@ const spec = {
                     category: { type: "string" },
                     quantity: { type: "string" },
                     unit: { type: "string" },
-                    pricePerUnit: { type: "integer", description: "Price in kobo (NGN × 100)" },
+                    pricePerUnit: {
+                        type: "integer",
+                        description: "Price in kobo (NGN × 100)",
+                    },
                     totalPrice: { type: "integer" },
                     locationState: { type: "string" },
                     locationLga: { type: "string", nullable: true },
                     description: { type: "string", nullable: true },
                     images: { type: "array", items: { type: "string" }, nullable: true },
                     deliveryOptions: { type: "array", items: { type: "string" } },
-                    status: { type: "string", enum: ["active", "sold", "expired", "paused"] },
+                    status: {
+                        type: "string",
+                        enum: ["active", "sold", "expired", "paused"],
+                    },
                     views: { type: "integer" },
                     expiresAt: { type: "string", format: "date-time" },
                     createdAt: { type: "string", format: "date-time" },
@@ -109,11 +116,24 @@ const spec = {
                     special_instructions: { type: "string", nullable: true },
                     status: {
                         type: "string",
-                        enum: ["pending_payment", "payment_confirmed", "processing", "ready_for_pickup", "completed", "cancelled", "disputed"],
+                        enum: [
+                            "pending_payment",
+                            "payment_confirmed",
+                            "processing",
+                            "ready_for_pickup",
+                            "completed",
+                            "cancelled",
+                            "disputed",
+                        ],
                     },
                     escrow_state: {
                         type: "string",
-                        enum: ["awaiting_payment", "secured_in_escrow", "released_to_wallet", "cancelled"],
+                        enum: [
+                            "awaiting_payment",
+                            "secured_in_escrow",
+                            "released_to_wallet",
+                            "cancelled",
+                        ],
                     },
                     completed_at: { type: "string", format: "date-time", nullable: true },
                     created_at: { type: "string", format: "date-time" },
@@ -139,7 +159,10 @@ const spec = {
                 properties: {
                     wallet_id: { type: "string", format: "uuid" },
                     user_id: { type: "string" },
-                    available_balance: { type: "string", description: "Balance in kobo as string" },
+                    available_balance: {
+                        type: "string",
+                        description: "Balance in kobo as string",
+                    },
                     pending_balance: { type: "string" },
                     total_paid_in: { type: "string" },
                     created_at: { type: "string", format: "date-time" },
@@ -186,11 +209,22 @@ const spec = {
                     thumbnailUrl: { type: "string", nullable: true },
                     cropType: { type: "string" },
                     farmerNotes: { type: "string", nullable: true },
-                    status: { type: "string", enum: ["pending", "processing", "completed", "failed"] },
+                    status: {
+                        type: "string",
+                        enum: ["pending", "processing", "completed", "failed"],
+                    },
                     resultDisease: { type: "string", nullable: true },
                     resultConfidence: { type: "string", nullable: true },
-                    resultSeverity: { type: "string", enum: ["low", "medium", "high"], nullable: true },
-                    resultRecommendations: { type: "array", items: { type: "string" }, nullable: true },
+                    resultSeverity: {
+                        type: "string",
+                        enum: ["low", "medium", "high"],
+                        nullable: true,
+                    },
+                    resultRecommendations: {
+                        type: "array",
+                        items: { type: "string" },
+                        nullable: true,
+                    },
                     createdAt: { type: "string", format: "date-time" },
                     completedAt: { type: "string", format: "date-time", nullable: true },
                 },
@@ -212,7 +246,10 @@ const spec = {
                             "application/json": {
                                 schema: {
                                     type: "object",
-                                    properties: { status: { type: "string", example: "ok" }, timestamp: { type: "string", format: "date-time" } },
+                                    properties: {
+                                        status: { type: "string", example: "ok" },
+                                        timestamp: { type: "string", format: "date-time" },
+                                    },
                                 },
                             },
                         },
@@ -221,7 +258,36 @@ const spec = {
             },
         },
         // ==================== AUTH ====================
-        "/api/auth/signup": {
+        "/api/v1/auth/google": {
+            post: {
+                tags: ["Auth"],
+                summary: "Sign in or sign up with a Google ID token",
+                security: [],
+                requestBody: {
+                    required: true,
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: "object",
+                                required: ["idToken"],
+                                properties: {
+                                    idToken: { type: "string", description: "Google Identity Services ID token (JWT credential)" },
+                                    role: { type: "string", enum: ["farmer", "buyer"], description: "Required only when the Google account has no existing HarvestLynk user" },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: {
+                    200: { description: "Signed in / account created", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthResponse" } } } },
+                    400: { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } } },
+                    401: { description: "Invalid Google token", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+                    403: { description: "Account suspended", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+                    404: { description: "No existing account and no role provided", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+                },
+            },
+        },
+        "/api/v1/auth/signup": {
             post: {
                 tags: ["Auth"],
                 summary: "Register a new account",
@@ -232,12 +298,24 @@ const spec = {
                         "application/json": {
                             schema: {
                                 type: "object",
-                                required: ["firstName", "lastName", "email", "password", "confirmPassword", "role", "acceptTerms"],
+                                required: [
+                                    "firstName",
+                                    "lastName",
+                                    "email",
+                                    "password",
+                                    "confirmPassword",
+                                    "role",
+                                    "acceptTerms",
+                                ],
                                 properties: {
                                     firstName: { type: "string", minLength: 2, maxLength: 50 },
                                     lastName: { type: "string", minLength: 2, maxLength: 50 },
                                     email: { type: "string", format: "email" },
-                                    password: { type: "string", minLength: 8, description: "Min 8 chars, 1 uppercase, 1 number" },
+                                    password: {
+                                        type: "string",
+                                        minLength: 8,
+                                        description: "Min 8 chars, 1 uppercase, 1 number",
+                                    },
                                     confirmPassword: { type: "string" },
                                     role: { type: "string", enum: ["farmer", "buyer"] },
                                     phoneNumber: { type: "string", example: "+2348012345678" },
@@ -249,13 +327,34 @@ const spec = {
                     },
                 },
                 responses: {
-                    201: { description: "Account created", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthResponse" } } } },
-                    400: { description: "Validation error", content: { "application/json": { schema: { $ref: "#/components/schemas/ValidationError" } } } },
-                    409: { description: "Email or phone already registered", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+                    201: {
+                        description: "Account created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/AuthResponse" },
+                            },
+                        },
+                    },
+                    400: {
+                        description: "Validation error",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/ValidationError" },
+                            },
+                        },
+                    },
+                    409: {
+                        description: "Email or phone already registered",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Error" },
+                            },
+                        },
+                    },
                 },
             },
         },
-        "/api/auth/login": {
+        "/api/v1/auth/login": {
             post: {
                 tags: ["Auth"],
                 summary: "Login with email and password",
@@ -276,16 +375,37 @@ const spec = {
                     },
                 },
                 responses: {
-                    200: { description: "Login successful — JWT set in cookie", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthResponse" } } } },
-                    401: { description: "Invalid credentials", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
-                    403: { description: "Account suspended", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+                    200: {
+                        description: "Login successful — JWT set in cookie",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/AuthResponse" },
+                            },
+                        },
+                    },
+                    401: {
+                        description: "Invalid credentials",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Error" },
+                            },
+                        },
+                    },
+                    403: {
+                        description: "Account suspended",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Error" },
+                            },
+                        },
+                    },
                 },
             },
         },
-        "/api/auth/sign-in/email": {
+        "/api/v1/auth/sign-in/email": {
             post: {
                 tags: ["Auth"],
-                summary: "Login (dashboard alias for /api/auth/login)",
+                summary: "Login (dashboard alias for /api/v1/auth/login)",
                 security: [],
                 requestBody: {
                     required: true,
@@ -303,24 +423,45 @@ const spec = {
                     },
                 },
                 responses: {
-                    200: { description: "Login successful", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthResponse" } } } },
-                    401: { description: "Invalid credentials", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+                    200: {
+                        description: "Login successful",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/AuthResponse" },
+                            },
+                        },
+                    },
+                    401: {
+                        description: "Invalid credentials",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Error" },
+                            },
+                        },
+                    },
                 },
             },
         },
-        "/api/auth/sign-out": {
+        "/api/v1/auth/sign-out": {
             post: {
                 tags: ["Auth"],
                 summary: "Logout — clears JWT cookie",
                 responses: {
                     200: {
                         description: "Logged out",
-                        content: { "application/json": { schema: { type: "object", properties: { message: { type: "string" } } } } },
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: { message: { type: "string" } },
+                                },
+                            },
+                        },
                     },
                 },
             },
         },
-        "/api/auth/get-session": {
+        "/api/v1/auth/get-session": {
             get: {
                 tags: ["Auth"],
                 summary: "Get current session and user from JWT",
@@ -332,10 +473,18 @@ const spec = {
                                 schema: {
                                     type: "object",
                                     properties: {
-                                        user: { oneOf: [{ $ref: "#/components/schemas/User" }, { type: "null" }] },
+                                        user: {
+                                            oneOf: [
+                                                { $ref: "#/components/schemas/User" },
+                                                { type: "null" },
+                                            ],
+                                        },
                                         session: {
                                             oneOf: [
-                                                { type: "object", properties: { userId: { type: "string" } } },
+                                                {
+                                                    type: "object",
+                                                    properties: { userId: { type: "string" } },
+                                                },
                                                 { type: "null" },
                                             ],
                                         },
@@ -348,7 +497,7 @@ const spec = {
             },
         },
         // ==================== USERS ====================
-        "/users/signup": {
+        "/api/v1/users/signup": {
             post: {
                 tags: ["Users"],
                 summary: "Dashboard signup (creates user without setting cookie)",
@@ -359,7 +508,13 @@ const spec = {
                         "application/json": {
                             schema: {
                                 type: "object",
-                                required: ["firstName", "lastName", "email", "password", "role"],
+                                required: [
+                                    "firstName",
+                                    "lastName",
+                                    "email",
+                                    "password",
+                                    "role",
+                                ],
                                 properties: {
                                     firstName: { type: "string" },
                                     lastName: { type: "string" },
@@ -372,35 +527,60 @@ const spec = {
                     },
                 },
                 responses: {
-                    201: { description: "User created", content: { "application/json": { schema: { $ref: "#/components/schemas/AuthResponse" } } } },
-                    409: { description: "Email already registered", content: { "application/json": { schema: { $ref: "#/components/schemas/Error" } } } },
+                    201: {
+                        description: "User created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/AuthResponse" },
+                            },
+                        },
+                    },
+                    409: {
+                        description: "Email already registered",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Error" },
+                            },
+                        },
+                    },
                 },
             },
         },
-        "/users/me": {
+        "/api/v1/users/me": {
             get: {
                 tags: ["Users"],
                 summary: "Get authenticated user's profile",
                 responses: {
-                    200: { description: "User profile", content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } },
+                    200: {
+                        description: "User profile",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/User" },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/users/me/stats": {
+        "/api/v1/users/me/stats": {
             get: {
                 tags: ["Users"],
                 summary: "Get authenticated user's dashboard stats",
                 responses: {
                     200: {
                         description: "Stats object (varies by role)",
-                        content: { "application/json": { schema: { type: "object", additionalProperties: true } } },
+                        content: {
+                            "application/json": {
+                                schema: { type: "object", additionalProperties: true },
+                            },
+                        },
                     },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/users/": {
+        "/api/v1/users/": {
             patch: {
                 tags: ["Users"],
                 summary: "Update authenticated user's profile",
@@ -430,32 +610,65 @@ const spec = {
                     },
                 },
                 responses: {
-                    200: { description: "Updated user", content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } },
+                    200: {
+                        description: "Updated user",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/User" },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/users/avatar": {
+        "/api/v1/users/avatar": {
             post: {
                 tags: ["Users"],
                 summary: "Upload / replace profile avatar",
                 requestBody: {
                     required: true,
-                    content: { "multipart/form-data": { schema: { type: "object", required: ["file"], properties: { file: { type: "string", format: "binary" } } } } },
+                    content: {
+                        "multipart/form-data": {
+                            schema: {
+                                type: "object",
+                                required: ["file"],
+                                properties: { file: { type: "string", format: "binary" } },
+                            },
+                        },
+                    },
                 },
                 responses: {
-                    200: { description: "Avatar URL", content: { "application/json": { schema: { type: "object", properties: { image: { type: "string" } } } } } },
+                    200: {
+                        description: "Avatar URL",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: { image: { type: "string" } },
+                                },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/users/liveness-check": {
+        "/api/v1/users/liveness-check": {
             post: {
                 tags: ["Users"],
                 summary: "Submit selfie for liveness verification",
                 requestBody: {
                     required: true,
-                    content: { "multipart/form-data": { schema: { type: "object", required: ["selfie"], properties: { selfie: { type: "string", format: "binary" } } } } },
+                    content: {
+                        "multipart/form-data": {
+                            schema: {
+                                type: "object",
+                                required: ["selfie"],
+                                properties: { selfie: { type: "string", format: "binary" } },
+                            },
+                        },
+                    },
                 },
                 responses: {
                     200: {
@@ -477,52 +690,109 @@ const spec = {
                 },
             },
         },
-        "/users/verify-nin": {
+        "/api/v1/users/verify-nin": {
             post: {
                 tags: ["Users"],
                 summary: "Upload NIN document image",
                 requestBody: {
                     required: true,
-                    content: { "multipart/form-data": { schema: { type: "object", required: ["file"], properties: { file: { type: "string", format: "binary" } } } } },
+                    content: {
+                        "multipart/form-data": {
+                            schema: {
+                                type: "object",
+                                required: ["file"],
+                                properties: { file: { type: "string", format: "binary" } },
+                            },
+                        },
+                    },
                 },
                 responses: {
-                    200: { description: "NIN document uploaded", content: { "application/json": { schema: { type: "object", properties: { nin_document_url: { type: "string" } } } } } },
+                    200: {
+                        description: "NIN document uploaded",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: { nin_document_url: { type: "string" } },
+                                },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/users/upload-ownership-doc": {
+        "/api/v1/users/upload-ownership-doc": {
             post: {
                 tags: ["Users"],
                 summary: "Upload farm ownership document",
                 requestBody: {
                     required: true,
-                    content: { "multipart/form-data": { schema: { type: "object", required: ["file"], properties: { file: { type: "string", format: "binary" } } } } },
+                    content: {
+                        "multipart/form-data": {
+                            schema: {
+                                type: "object",
+                                required: ["file"],
+                                properties: { file: { type: "string", format: "binary" } },
+                            },
+                        },
+                    },
                 },
                 responses: {
-                    200: { description: "Document uploaded", content: { "application/json": { schema: { type: "object", properties: { ownership_document_url: { type: "string" } } } } } },
+                    200: {
+                        description: "Document uploaded",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: { ownership_document_url: { type: "string" } },
+                                },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/users/{id}": {
+        "/api/v1/users/{id}": {
             get: {
                 tags: ["Users"],
                 summary: "Get public user profile by ID",
                 security: [],
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string" },
+                    },
+                ],
                 responses: {
-                    200: { description: "User profile", content: { "application/json": { schema: { $ref: "#/components/schemas/User" } } } },
+                    200: {
+                        description: "User profile",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/User" },
+                            },
+                        },
+                    },
                     404: { description: "User not found" },
                 },
             },
         },
-        "/users/{id}/ratings": {
+        "/api/v1/users/{id}/ratings": {
             get: {
                 tags: ["Users"],
                 summary: "Get ratings for a farmer",
                 security: [],
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string" },
+                    },
+                ],
                 responses: {
                     200: {
                         description: "Farmer ratings",
@@ -542,7 +812,10 @@ const spec = {
                                                     rating: { type: "integer" },
                                                     review: { type: "string", nullable: true },
                                                     qualityRating: { type: "integer", nullable: true },
-                                                    communicationRating: { type: "integer", nullable: true },
+                                                    communicationRating: {
+                                                        type: "integer",
+                                                        nullable: true,
+                                                    },
                                                     deliveryRating: { type: "integer", nullable: true },
                                                     createdAt: { type: "string", format: "date-time" },
                                                 },
@@ -557,7 +830,7 @@ const spec = {
             },
         },
         // ==================== WALLET ====================
-        "/wallet/banks": {
+        "/api/v1/wallet/banks": {
             get: {
                 tags: ["Wallet"],
                 summary: "Get list of Nigerian banks",
@@ -572,7 +845,13 @@ const spec = {
                                     properties: {
                                         banks: {
                                             type: "array",
-                                            items: { type: "object", properties: { name: { type: "string" }, code: { type: "string" } } },
+                                            items: {
+                                                type: "object",
+                                                properties: {
+                                                    name: { type: "string" },
+                                                    code: { type: "string" },
+                                                },
+                                            },
                                         },
                                     },
                                 },
@@ -582,36 +861,62 @@ const spec = {
                 },
             },
         },
-        "/wallet/balance": {
+        "/api/v1/wallet/balance": {
             get: {
                 tags: ["Wallet"],
                 summary: "Get authenticated user's wallet balance",
                 responses: {
-                    200: { description: "Wallet balance", content: { "application/json": { schema: { $ref: "#/components/schemas/Wallet" } } } },
+                    200: {
+                        description: "Wallet balance",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Wallet" },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/wallet/transactions": {
+        "/api/v1/wallet/transactions": {
             get: {
                 tags: ["Wallet"],
                 summary: "Get wallet transaction history (last 50)",
                 responses: {
                     200: {
                         description: "Transaction list",
-                        content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Transaction" } } } },
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/components/schemas/Transaction" },
+                                },
+                            },
+                        },
                     },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/wallet/verify-bank": {
+        "/api/v1/wallet/verify-bank": {
             get: {
                 tags: ["Wallet"],
                 summary: "Verify a bank account number",
                 parameters: [
-                    { name: "bank_code", in: "query", required: true, schema: { type: "string" }, example: "058" },
-                    { name: "account_number", in: "query", required: true, schema: { type: "string" }, example: "0123456789" },
+                    {
+                        name: "bank_code",
+                        in: "query",
+                        required: true,
+                        schema: { type: "string" },
+                        example: "058",
+                    },
+                    {
+                        name: "account_number",
+                        in: "query",
+                        required: true,
+                        schema: { type: "string" },
+                        example: "0123456789",
+                    },
                 ],
                 responses: {
                     200: {
@@ -623,7 +928,10 @@ const spec = {
                                     properties: {
                                         success: { type: "boolean" },
                                         message: { type: "string" },
-                                        data: { type: "object", properties: { account_name: { type: "string" } } },
+                                        data: {
+                                            type: "object",
+                                            properties: { account_name: { type: "string" } },
+                                        },
                                     },
                                 },
                             },
@@ -634,7 +942,7 @@ const spec = {
                 },
             },
         },
-        "/wallet/withdraw": {
+        "/api/v1/wallet/withdraw": {
             post: {
                 tags: ["Wallet"],
                 summary: "Initiate a wallet withdrawal",
@@ -644,9 +952,17 @@ const spec = {
                         "application/json": {
                             schema: {
                                 type: "object",
-                                required: ["amount", "bank_name", "bank_code", "account_number"],
+                                required: [
+                                    "amount",
+                                    "bank_name",
+                                    "bank_code",
+                                    "account_number",
+                                ],
                                 properties: {
-                                    amount: { type: "integer", description: "Amount in kobo (e.g. 500000 = ₦5,000)" },
+                                    amount: {
+                                        type: "integer",
+                                        description: "Amount in kobo (e.g. 500000 = ₦5,000)",
+                                    },
                                     bank_name: { type: "string" },
                                     bank_code: { type: "string" },
                                     account_number: { type: "string", minLength: 10 },
@@ -678,14 +994,22 @@ const spec = {
             },
         },
         // ==================== MARKETPLACE ====================
-        "/marketplace/listings": {
+        "/api/v1/marketplace/listings": {
             get: {
                 tags: ["Marketplace"],
                 summary: "Get all active listings (paginated)",
                 security: [],
                 parameters: [
-                    { name: "page", in: "query", schema: { type: "integer", default: 1 } },
-                    { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+                    {
+                        name: "page",
+                        in: "query",
+                        schema: { type: "integer", default: 1 },
+                    },
+                    {
+                        name: "limit",
+                        in: "query",
+                        schema: { type: "integer", default: 20 },
+                    },
                     { name: "category", in: "query", schema: { type: "string" } },
                     { name: "location_state", in: "query", schema: { type: "string" } },
                     { name: "search", in: "query", schema: { type: "string" } },
@@ -698,7 +1022,10 @@ const spec = {
                                 schema: {
                                     type: "object",
                                     properties: {
-                                        data: { type: "array", items: { $ref: "#/components/schemas/Listing" } },
+                                        data: {
+                                            type: "array",
+                                            items: { $ref: "#/components/schemas/Listing" },
+                                        },
                                         page: { type: "integer" },
                                         limit: { type: "integer" },
                                         total: { type: "integer" },
@@ -718,7 +1045,14 @@ const spec = {
                         "application/json": {
                             schema: {
                                 type: "object",
-                                required: ["productName", "category", "quantity", "unit", "pricePerUnit", "locationState"],
+                                required: [
+                                    "productName",
+                                    "category",
+                                    "quantity",
+                                    "unit",
+                                    "pricePerUnit",
+                                    "locationState",
+                                ],
                                 properties: {
                                     productName: { type: "string" },
                                     category: { type: "string" },
@@ -729,7 +1063,10 @@ const spec = {
                                     locationLga: { type: "string" },
                                     description: { type: "string" },
                                     images: { type: "array", items: { type: "string" } },
-                                    deliveryOptions: { type: "array", items: { type: "string", enum: ["pickup", "delivery"] } },
+                                    deliveryOptions: {
+                                        type: "array",
+                                        items: { type: "string", enum: ["pickup", "delivery"] },
+                                    },
                                     harvestDate: { type: "string", format: "date-time" },
                                     pickupAddress: { type: "string" },
                                 },
@@ -738,37 +1075,75 @@ const spec = {
                     },
                 },
                 responses: {
-                    201: { description: "Listing created", content: { "application/json": { schema: { $ref: "#/components/schemas/Listing" } } } },
+                    201: {
+                        description: "Listing created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Listing" },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                     403: { description: "Farmers only" },
                 },
             },
         },
-        "/marketplace/listings/my": {
+        "/api/v1/marketplace/listings/my": {
             get: {
                 tags: ["Marketplace"],
                 summary: "Get authenticated farmer's own listings",
                 responses: {
-                    200: { description: "Farmer's listings", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Listing" } } } } },
+                    200: {
+                        description: "Farmer's listings",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/components/schemas/Listing" },
+                                },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/marketplace/listings/{id}": {
+        "/api/v1/marketplace/listings/{id}": {
             get: {
                 tags: ["Marketplace"],
                 summary: "Get a single listing by ID",
                 security: [],
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", format: "uuid" },
+                    },
+                ],
                 responses: {
-                    200: { description: "Listing detail", content: { "application/json": { schema: { $ref: "#/components/schemas/Listing" } } } },
+                    200: {
+                        description: "Listing detail",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Listing" },
+                            },
+                        },
+                    },
                     404: { description: "Not found" },
                 },
             },
             patch: {
                 tags: ["Marketplace"],
                 summary: "Update a listing (owner only)",
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", format: "uuid" },
+                    },
+                ],
                 requestBody: {
                     content: {
                         "application/json": {
@@ -779,7 +1154,10 @@ const spec = {
                                     quantity: { type: "number" },
                                     pricePerUnit: { type: "integer" },
                                     description: { type: "string" },
-                                    status: { type: "string", enum: ["active", "paused", "sold"] },
+                                    status: {
+                                        type: "string",
+                                        enum: ["active", "paused", "sold"],
+                                    },
                                     images: { type: "array", items: { type: "string" } },
                                 },
                             },
@@ -787,7 +1165,14 @@ const spec = {
                     },
                 },
                 responses: {
-                    200: { description: "Updated listing", content: { "application/json": { schema: { $ref: "#/components/schemas/Listing" } } } },
+                    200: {
+                        description: "Updated listing",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Listing" },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                     403: { description: "Forbidden" },
                     404: { description: "Not found" },
@@ -796,7 +1181,14 @@ const spec = {
             delete: {
                 tags: ["Marketplace"],
                 summary: "Delete a listing (owner only)",
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", format: "uuid" },
+                    },
+                ],
                 responses: {
                     200: { description: "Deleted" },
                     401: { description: "Unauthorized" },
@@ -804,22 +1196,40 @@ const spec = {
                 },
             },
         },
-        "/marketplace/upload": {
+        "/api/v1/marketplace/upload": {
             post: {
                 tags: ["Marketplace"],
                 summary: "Upload a listing image to Cloudinary",
                 requestBody: {
                     required: true,
-                    content: { "multipart/form-data": { schema: { type: "object", required: ["file"], properties: { file: { type: "string", format: "binary" } } } } },
+                    content: {
+                        "multipart/form-data": {
+                            schema: {
+                                type: "object",
+                                required: ["file"],
+                                properties: { file: { type: "string", format: "binary" } },
+                            },
+                        },
+                    },
                 },
                 responses: {
-                    200: { description: "Image URL", content: { "application/json": { schema: { type: "object", properties: { url: { type: "string" } } } } } },
+                    200: {
+                        description: "Image URL",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: { url: { type: "string" } },
+                                },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },
         },
         // ==================== ORDERS ====================
-        "/orders": {
+        "/api/v1/orders": {
             post: {
                 tags: ["Orders"],
                 summary: "Create an order (buyers only)",
@@ -833,7 +1243,10 @@ const spec = {
                                 properties: {
                                     listing_id: { type: "string", format: "uuid" },
                                     quantity: { type: "number", minimum: 0.01 },
-                                    delivery_method: { type: "string", enum: ["pickup", "delivery"] },
+                                    delivery_method: {
+                                        type: "string",
+                                        enum: ["pickup", "delivery"],
+                                    },
                                     delivery_address: { type: "string", nullable: true },
                                     special_instructions: { type: "string", nullable: true },
                                 },
@@ -842,24 +1255,41 @@ const spec = {
                     },
                 },
                 responses: {
-                    201: { description: "Order created", content: { "application/json": { schema: { $ref: "#/components/schemas/BuyerOrder" } } } },
+                    201: {
+                        description: "Order created",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/BuyerOrder" },
+                            },
+                        },
+                    },
                     400: { description: "Validation error or own listing" },
                     401: { description: "Unauthorized" },
                     404: { description: "Listing not available" },
                 },
             },
         },
-        "/orders/buyer": {
+        "/api/v1/orders/buyer": {
             get: {
                 tags: ["Orders"],
                 summary: "Get all orders placed by authenticated buyer",
                 responses: {
-                    200: { description: "Buyer's orders", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/BuyerOrder" } } } } },
+                    200: {
+                        description: "Buyer's orders",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/components/schemas/BuyerOrder" },
+                                },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/orders/my": {
+        "/api/v1/orders/my": {
             get: {
                 tags: ["Orders"],
                 summary: "Get all orders received by authenticated farmer",
@@ -882,8 +1312,17 @@ const spec = {
                                             delivery_method: { type: "string" },
                                             status: { type: "string" },
                                             escrow_state: { type: "string" },
-                                            listing: { type: "object", properties: { product_name: { type: "string" }, unit: { type: "string" } } },
-                                            buyer: { type: "object", properties: { name: { type: "string" } } },
+                                            listing: {
+                                                type: "object",
+                                                properties: {
+                                                    product_name: { type: "string" },
+                                                    unit: { type: "string" },
+                                                },
+                                            },
+                                            buyer: {
+                                                type: "object",
+                                                properties: { name: { type: "string" } },
+                                            },
                                         },
                                     },
                                 },
@@ -894,11 +1333,18 @@ const spec = {
                 },
             },
         },
-        "/orders/{id}/confirm-delivery": {
+        "/api/v1/orders/{id}/confirm-delivery": {
             patch: {
                 tags: ["Orders"],
                 summary: "Buyer confirms delivery — marks order completed",
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", format: "uuid" },
+                    },
+                ],
                 responses: {
                     200: {
                         description: "Order completed",
@@ -906,7 +1352,16 @@ const spec = {
                             "application/json": {
                                 schema: {
                                     type: "object",
-                                    properties: { message: { type: "string" }, order: { type: "object", properties: { order_id: { type: "string" }, status: { type: "string" } } } },
+                                    properties: {
+                                        message: { type: "string" },
+                                        order: {
+                                            type: "object",
+                                            properties: {
+                                                order_id: { type: "string" },
+                                                status: { type: "string" },
+                                            },
+                                        },
+                                    },
                                 },
                             },
                         },
@@ -917,11 +1372,18 @@ const spec = {
                 },
             },
         },
-        "/orders/{id}/status": {
+        "/api/v1/orders/{id}/status": {
             patch: {
                 tags: ["Orders"],
                 summary: "Farmer advances order status (payment_confirmed → processing → ready_for_pickup)",
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", format: "uuid" },
+                    },
+                ],
                 responses: {
                     200: {
                         description: "Status updated",
@@ -929,7 +1391,11 @@ const spec = {
                             "application/json": {
                                 schema: {
                                     type: "object",
-                                    properties: { order_id: { type: "string" }, status: { type: "string" }, escrow_state: { type: "string" } },
+                                    properties: {
+                                        order_id: { type: "string" },
+                                        status: { type: "string" },
+                                        escrow_state: { type: "string" },
+                                    },
                                 },
                             },
                         },
@@ -940,22 +1406,42 @@ const spec = {
                 },
             },
         },
-        "/orders/{id}/cancel": {
+        "/api/v1/orders/{id}/cancel": {
             patch: {
                 tags: ["Orders"],
                 summary: "Cancel an order (buyer or farmer, only for cancellable statuses)",
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", format: "uuid" },
+                    },
+                ],
                 requestBody: {
                     content: {
                         "application/json": {
-                            schema: { type: "object", properties: { reason: { type: "string" } } },
+                            schema: {
+                                type: "object",
+                                properties: { reason: { type: "string" } },
+                            },
                         },
                     },
                 },
                 responses: {
                     200: {
                         description: "Order cancelled",
-                        content: { "application/json": { schema: { type: "object", properties: { order_id: { type: "string" }, status: { type: "string" } } } } },
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        order_id: { type: "string" },
+                                        status: { type: "string" },
+                                    },
+                                },
+                            },
+                        },
                     },
                     400: { description: "Cannot cancel at this status" },
                     401: { description: "Unauthorized" },
@@ -963,11 +1449,18 @@ const spec = {
                 },
             },
         },
-        "/orders/{id}/rate": {
+        "/api/v1/orders/{id}/rate": {
             post: {
                 tags: ["Orders"],
                 summary: "Rate a completed order (buyer rates farmer)",
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", format: "uuid" },
+                    },
+                ],
                 requestBody: {
                     required: true,
                     content: {
@@ -979,7 +1472,11 @@ const spec = {
                                     rating: { type: "integer", minimum: 1, maximum: 5 },
                                     review: { type: "string" },
                                     qualityRating: { type: "integer", minimum: 1, maximum: 5 },
-                                    communicationRating: { type: "integer", minimum: 1, maximum: 5 },
+                                    communicationRating: {
+                                        type: "integer",
+                                        minimum: 1,
+                                        maximum: 5,
+                                    },
                                     deliveryRating: { type: "integer", minimum: 1, maximum: 5 },
                                 },
                             },
@@ -995,33 +1492,47 @@ const spec = {
             },
         },
         // ==================== NOTIFICATIONS ====================
-        "/notifications": {
+        "/api/v1/notifications": {
             get: {
                 tags: ["Notifications"],
                 summary: "Get all notifications for authenticated user",
                 responses: {
                     200: {
                         description: "Notification list",
-                        content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Notification" } } } },
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/components/schemas/Notification" },
+                                },
+                            },
+                        },
                     },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/notifications/unread-count": {
+        "/api/v1/notifications/unread-count": {
             get: {
                 tags: ["Notifications"],
                 summary: "Get count of unread notifications",
                 responses: {
                     200: {
                         description: "Unread count",
-                        content: { "application/json": { schema: { type: "object", properties: { count: { type: "integer" } } } } },
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: { count: { type: "integer" } },
+                                },
+                            },
+                        },
                     },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/notifications/read-all": {
+        "/api/v1/notifications/read-all": {
             patch: {
                 tags: ["Notifications"],
                 summary: "Mark all notifications as read",
@@ -1031,11 +1542,18 @@ const spec = {
                 },
             },
         },
-        "/notifications/{id}/read": {
+        "/api/v1/notifications/{id}/read": {
             patch: {
                 tags: ["Notifications"],
                 summary: "Mark a single notification as read",
-                parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+                parameters: [
+                    {
+                        name: "id",
+                        in: "path",
+                        required: true,
+                        schema: { type: "string", format: "uuid" },
+                    },
+                ],
                 responses: {
                     200: { description: "Notification marked read" },
                     401: { description: "Unauthorized" },
@@ -1044,7 +1562,7 @@ const spec = {
             },
         },
         // ==================== SCANS ====================
-        "/scans": {
+        "/api/v1/scans": {
             post: {
                 tags: ["Scans"],
                 summary: "Submit a crop image for disease scan",
@@ -1056,7 +1574,11 @@ const spec = {
                                 type: "object",
                                 required: ["image", "cropType"],
                                 properties: {
-                                    image: { type: "string", format: "binary", description: "Crop image (max 20MB)" },
+                                    image: {
+                                        type: "string",
+                                        format: "binary",
+                                        description: "Crop image (max 20MB)",
+                                    },
                                     cropType: { type: "string", example: "maize" },
                                     farmerNotes: { type: "string" },
                                     latitude: { type: "number" },
@@ -1067,18 +1589,35 @@ const spec = {
                     },
                 },
                 responses: {
-                    201: { description: "Scan submitted", content: { "application/json": { schema: { $ref: "#/components/schemas/Scan" } } } },
+                    201: {
+                        description: "Scan submitted",
+                        content: {
+                            "application/json": {
+                                schema: { $ref: "#/components/schemas/Scan" },
+                            },
+                        },
+                    },
                     400: { description: "Validation error" },
                     401: { description: "Unauthorized" },
                 },
             },
         },
-        "/scans/my": {
+        "/api/v1/scans/my": {
             get: {
                 tags: ["Scans"],
                 summary: "Get all scans submitted by authenticated user",
                 responses: {
-                    200: { description: "Scan list", content: { "application/json": { schema: { type: "array", items: { $ref: "#/components/schemas/Scan" } } } } },
+                    200: {
+                        description: "Scan list",
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "array",
+                                    items: { $ref: "#/components/schemas/Scan" },
+                                },
+                            },
+                        },
+                    },
                     401: { description: "Unauthorized" },
                 },
             },

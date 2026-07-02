@@ -521,7 +521,88 @@ declare const spec: {
                 };
             };
         };
-        "/api/auth/signup": {
+        "/api/v1/auth/google": {
+            post: {
+                tags: string[];
+                summary: string;
+                security: never[];
+                requestBody: {
+                    required: boolean;
+                    content: {
+                        "application/json": {
+                            schema: {
+                                type: string;
+                                required: string[];
+                                properties: {
+                                    idToken: {
+                                        type: string;
+                                        description: string;
+                                    };
+                                    role: {
+                                        type: string;
+                                        enum: string[];
+                                        description: string;
+                                    };
+                                };
+                            };
+                        };
+                    };
+                };
+                responses: {
+                    200: {
+                        description: string;
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    $ref: string;
+                                };
+                            };
+                        };
+                    };
+                    400: {
+                        description: string;
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    $ref: string;
+                                };
+                            };
+                        };
+                    };
+                    401: {
+                        description: string;
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    $ref: string;
+                                };
+                            };
+                        };
+                    };
+                    403: {
+                        description: string;
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    $ref: string;
+                                };
+                            };
+                        };
+                    };
+                    404: {
+                        description: string;
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    $ref: string;
+                                };
+                            };
+                        };
+                    };
+                };
+            };
+        };
+        "/api/v1/auth/signup": {
             post: {
                 tags: string[];
                 summary: string;
@@ -610,7 +691,7 @@ declare const spec: {
                 };
             };
         };
-        "/api/auth/login": {
+        "/api/v1/auth/login": {
             post: {
                 tags: string[];
                 summary: string;
@@ -669,7 +750,7 @@ declare const spec: {
                 };
             };
         };
-        "/api/auth/sign-in/email": {
+        "/api/v1/auth/sign-in/email": {
             post: {
                 tags: string[];
                 summary: string;
@@ -718,7 +799,7 @@ declare const spec: {
                 };
             };
         };
-        "/api/auth/sign-out": {
+        "/api/v1/auth/sign-out": {
             post: {
                 tags: string[];
                 summary: string;
@@ -741,7 +822,7 @@ declare const spec: {
                 };
             };
         };
-        "/api/auth/get-session": {
+        "/api/v1/auth/get-session": {
             get: {
                 tags: string[];
                 summary: string;
@@ -783,7 +864,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/signup": {
+        "/api/v1/users/signup": {
             post: {
                 tags: string[];
                 summary: string;
@@ -842,7 +923,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/me": {
+        "/api/v1/users/me": {
             get: {
                 tags: string[];
                 summary: string;
@@ -863,7 +944,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/me/stats": {
+        "/api/v1/users/me/stats": {
             get: {
                 tags: string[];
                 summary: string;
@@ -885,7 +966,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/": {
+        "/api/v1/users/": {
             patch: {
                 tags: string[];
                 summary: string;
@@ -957,7 +1038,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/avatar": {
+        "/api/v1/users/avatar": {
             post: {
                 tags: string[];
                 summary: string;
@@ -1000,7 +1081,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/liveness-check": {
+        "/api/v1/users/liveness-check": {
             post: {
                 tags: string[];
                 summary: string;
@@ -1049,7 +1130,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/verify-nin": {
+        "/api/v1/users/verify-nin": {
             post: {
                 tags: string[];
                 summary: string;
@@ -1092,7 +1173,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/upload-ownership-doc": {
+        "/api/v1/users/upload-ownership-doc": {
             post: {
                 tags: string[];
                 summary: string;
@@ -1135,7 +1216,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/{id}": {
+        "/api/v1/users/{id}": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1165,7 +1246,7 @@ declare const spec: {
                 };
             };
         };
-        "/users/{id}/ratings": {
+        "/api/v1/users/{id}/ratings": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1234,7 +1315,7 @@ declare const spec: {
                 };
             };
         };
-        "/wallet/banks": {
+        "/api/v1/wallet/banks": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1269,7 +1350,7 @@ declare const spec: {
                 };
             };
         };
-        "/wallet/balance": {
+        "/api/v1/wallet/balance": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1290,7 +1371,7 @@ declare const spec: {
                 };
             };
         };
-        "/wallet/transactions": {
+        "/api/v1/wallet/transactions": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1314,7 +1395,7 @@ declare const spec: {
                 };
             };
         };
-        "/wallet/verify-bank": {
+        "/api/v1/wallet/verify-bank": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1363,7 +1444,7 @@ declare const spec: {
                 };
             };
         };
-        "/wallet/withdraw": {
+        "/api/v1/wallet/withdraw": {
             post: {
                 tags: string[];
                 summary: string;
@@ -1428,7 +1509,7 @@ declare const spec: {
                 };
             };
         };
-        "/marketplace/listings": {
+        "/api/v1/marketplace/listings": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1560,7 +1641,7 @@ declare const spec: {
                 };
             };
         };
-        "/marketplace/listings/my": {
+        "/api/v1/marketplace/listings/my": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1584,7 +1665,7 @@ declare const spec: {
                 };
             };
         };
-        "/marketplace/listings/{id}": {
+        "/api/v1/marketplace/listings/{id}": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1706,7 +1787,7 @@ declare const spec: {
                 };
             };
         };
-        "/marketplace/upload": {
+        "/api/v1/marketplace/upload": {
             post: {
                 tags: string[];
                 summary: string;
@@ -1749,7 +1830,7 @@ declare const spec: {
                 };
             };
         };
-        "/orders": {
+        "/api/v1/orders": {
             post: {
                 tags: string[];
                 summary: string;
@@ -1809,7 +1890,7 @@ declare const spec: {
                 };
             };
         };
-        "/orders/buyer": {
+        "/api/v1/orders/buyer": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1833,7 +1914,7 @@ declare const spec: {
                 };
             };
         };
-        "/orders/my": {
+        "/api/v1/orders/my": {
             get: {
                 tags: string[];
                 summary: string;
@@ -1905,7 +1986,7 @@ declare const spec: {
                 };
             };
         };
-        "/orders/{id}/confirm-delivery": {
+        "/api/v1/orders/{id}/confirm-delivery": {
             patch: {
                 tags: string[];
                 summary: string;
@@ -1957,7 +2038,7 @@ declare const spec: {
                 };
             };
         };
-        "/orders/{id}/status": {
+        "/api/v1/orders/{id}/status": {
             patch: {
                 tags: string[];
                 summary: string;
@@ -2004,7 +2085,7 @@ declare const spec: {
                 };
             };
         };
-        "/orders/{id}/cancel": {
+        "/api/v1/orders/{id}/cancel": {
             patch: {
                 tags: string[];
                 summary: string;
@@ -2062,7 +2143,7 @@ declare const spec: {
                 };
             };
         };
-        "/orders/{id}/rate": {
+        "/api/v1/orders/{id}/rate": {
             post: {
                 tags: string[];
                 summary: string;
@@ -2127,7 +2208,7 @@ declare const spec: {
                 };
             };
         };
-        "/notifications": {
+        "/api/v1/notifications": {
             get: {
                 tags: string[];
                 summary: string;
@@ -2151,7 +2232,7 @@ declare const spec: {
                 };
             };
         };
-        "/notifications/unread-count": {
+        "/api/v1/notifications/unread-count": {
             get: {
                 tags: string[];
                 summary: string;
@@ -2177,7 +2258,7 @@ declare const spec: {
                 };
             };
         };
-        "/notifications/read-all": {
+        "/api/v1/notifications/read-all": {
             patch: {
                 tags: string[];
                 summary: string;
@@ -2191,7 +2272,7 @@ declare const spec: {
                 };
             };
         };
-        "/notifications/{id}/read": {
+        "/api/v1/notifications/{id}/read": {
             patch: {
                 tags: string[];
                 summary: string;
@@ -2217,7 +2298,7 @@ declare const spec: {
                 };
             };
         };
-        "/scans": {
+        "/api/v1/scans": {
             post: {
                 tags: string[];
                 summary: string;
@@ -2272,7 +2353,7 @@ declare const spec: {
                 };
             };
         };
-        "/scans/my": {
+        "/api/v1/scans/my": {
             get: {
                 tags: string[];
                 summary: string;

@@ -25,4 +25,8 @@ export const loginSchema = z.object({
     email: z.email("Invalid email address").toLowerCase().trim(),
     password: z.string().min(1, "Password is required"),
 });
+export const googleAuthSchema = z.object({
+    idToken: z.string().min(1, "idToken is required"),
+    role: z.enum(["farmer", "buyer"]).optional(),
+});
 //# sourceMappingURL=auth.validator.js.map

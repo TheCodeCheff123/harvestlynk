@@ -4,6 +4,7 @@ import {
   verifyEmail, resendVerification,
   revokeSession, getSessions, revokeOtherSessions,
   forgotPassword, resetPassword, changePassword,
+  googleAuth,
 } from "../../controllers/auth.controller.js";
 import { authenticate } from "../../middleware/auth.js";
 import { authLimiter } from "../../middleware/rateLimiter.js";
@@ -12,6 +13,7 @@ const router: IRouter = Router();
 
 router.post("/signup", authLimiter, signup);
 router.post("/login", authLimiter, login);
+router.post("/google", authLimiter, googleAuth);
 router.post("/refresh", authLimiter, refresh);
 router.post("/logout", logout);
 router.get("/verify-email", verifyEmail);

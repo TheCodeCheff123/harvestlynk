@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 
-const BACKEND = process.env.BACKEND_URL ?? "http://localhost:4000";
+const BACKEND = process.env.NEXT_PUBLIC_BACKEND_URL ?? process.env.BACKEND_URL ?? "http://localhost:4000";
 
 async function proxy(
   req: NextRequest,
@@ -17,12 +17,22 @@ async function proxy(
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";
 
+  // Read the body into a buffer first. Passing req.body (ReadableStream)
+  // directly to fetch can throw "expected non-null body source" in Node/undici
+  // when the stream is null or has already been consumed.
+  let bodyBuffer: ArrayBuffer | undefined;
+  if (hasBody) {
+    try {
+      bodyBuffer = await req.arrayBuffer();
+    } catch {
+      bodyBuffer = undefined;
+    }
+  }
+
   const upstream = await fetch(url, {
     method: req.method,
     headers,
-    body: hasBody ? req.body : undefined,
-    // @ts-expect-error duplex is required for streaming request bodies
-    duplex: hasBody ? "half" : undefined,
+    ...(bodyBuffer && bodyBuffer.byteLength > 0 ? { body: bodyBuffer } : {}),
   });
 
   const resHeaders = new Headers();

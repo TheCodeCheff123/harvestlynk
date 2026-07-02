@@ -1,6 +1,9 @@
 import { WebSocketServer, WebSocket } from "ws";
 import type { Server } from "http";
-import { verifyToken } from "./jwt.js";
+import { eq } from "drizzle-orm";
+import { db } from "../db/index.js";
+import { users } from "../db/schema.js";
+import { getSupabaseAdmin } from "./supabase.js";
 
 const clients = new Map<string, Set<WebSocket>>();
 
@@ -14,8 +17,17 @@ export function initWsServer(server: Server) {
     if (!token) { ws.close(1008, "Unauthorized"); return; }
 
     try {
-      const payload = await verifyToken(token);
-      const { userId } = payload;
+      const { data, error } = await getSupabaseAdmin().auth.getUser(token);
+      if (error || !data.user?.email) throw new Error("Invalid token");
+
+      const [localUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, data.user.email.toLowerCase()))
+        .limit(1);
+      if (!localUser) throw new Error("Profile not found");
+
+      const userId = localUser.id;
 
       if (!clients.has(userId)) clients.set(userId, new Set());
       clients.get(userId)!.add(ws);

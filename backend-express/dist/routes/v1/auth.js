@@ -1,10 +1,11 @@
 import { Router } from "express";
-import { signup, login, refresh, logout, verifyEmail, resendVerification, revokeSession, getSessions, revokeOtherSessions, forgotPassword, resetPassword, changePassword, } from "../../controllers/auth.controller.js";
+import { signup, login, refresh, logout, verifyEmail, resendVerification, revokeSession, getSessions, revokeOtherSessions, forgotPassword, resetPassword, changePassword, googleAuth, } from "../../controllers/auth.controller.js";
 import { authenticate } from "../../middleware/auth.js";
 import { authLimiter } from "../../middleware/rateLimiter.js";
 const router = Router();
 router.post("/signup", authLimiter, signup);
 router.post("/login", authLimiter, login);
+router.post("/google", authLimiter, googleAuth);
 router.post("/refresh", authLimiter, refresh);
 router.post("/logout", logout);
 router.get("/verify-email", verifyEmail);

@@ -24,6 +24,7 @@ interface AuthContextValue {
   wallet: WalletBalance | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<User>;
+  loginWithGoogle: (idToken: string, role?: "farmer" | "buyer") => Promise<User>;
   signup: (data: SignupData) => Promise<{ message: string }>;
   logout: () => Promise<void>;
   refreshWallet: () => Promise<void>;
@@ -142,6 +143,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return fullUser;
   }, []);
 
+  const loginWithGoogle = useCallback(async (idToken: string, role?: "farmer" | "buyer"): Promise<User> => {
+    const { accessToken, refreshToken, user: authUser } = await authApi.google(idToken, role);
+    setTokens(accessToken, refreshToken);
+
+    const fullUser = await usersApi.getUser(authUser.id);
+    setUser(fullUser);
+    localStorage.setItem(CACHE_KEY, JSON.stringify(fullUser));
+    if (fullUser.wallet) setWallet(fullUser.wallet);
+    return fullUser;
+  }, []);
+
   const signup = useCallback(async (data: SignupData): Promise<{ message: string }> => {
     return authApi.signup(data);
   }, []);
@@ -174,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user?.id]);
 
   return (
-    <AuthContext.Provider value={{ user, wallet, loading, login, signup, logout, refreshWallet, refreshUser }}>
+    <AuthContext.Provider value={{ user, wallet, loading, login, loginWithGoogle, signup, logout, refreshWallet, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,16 +10,20 @@ function VerifyHandler() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const token = hashParams.get("access_token") ?? searchParams.get("token");
+    const refreshToken = hashParams.get("refresh_token") ?? undefined;
     if (!token) {
-      setStatus("error");
-      setMessage("No verification token found. Please use the link from your email.");
+      queueMicrotask(() => {
+        setStatus("error");
+        setMessage("No verification token found. Please use the link from your email.");
+      });
       return;
     }
 
-    authApi.verifyEmail(token)
+    authApi.verifyEmail(token, refreshToken)
       .then(({ accessToken, refreshToken, user }) => {
-        setTokens(accessToken, refreshToken);
+        if (accessToken && refreshToken) setTokens(accessToken, refreshToken);
         setStatus("success");
         setTimeout(() => {
           router.replace(user.role === "farmer" ? "/dashboard/farmer" : "/dashboard/buyer");

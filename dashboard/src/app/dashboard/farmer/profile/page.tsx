@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeUp, scaleIn } from "@/lib/motion";
@@ -92,9 +93,19 @@ export default function Profile() {
               initial={{ scale: 0.7, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.15, type: "spring", stiffness: 260 }}
-              className="w-24 h-24 rounded-full bg-gradient-to-br from-green-200 to-green-400 flex items-center justify-center mb-4 relative"
+              className="w-24 h-24 rounded-full bg-gradient-to-br from-green-200 to-green-400 flex items-center justify-center mb-4 relative overflow-hidden"
             >
-              <i className="ri-user-line text-4xl text-white" />
+              {user?.image ? (
+                <Image
+                  src={user.image}
+                  alt={displayName}
+                  fill
+                  className="object-cover"
+                  sizes="96px"
+                />
+              ) : (
+                <i className="ri-user-line text-4xl text-white" />
+              )}
               {user?.liveness_verified && (
                 <div className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center">
                   <i className="ri-verified-badge-fill text-white text-xs" />

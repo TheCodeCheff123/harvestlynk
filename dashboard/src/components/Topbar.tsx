@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -106,8 +107,19 @@ export default function Topbar({ onMenuToggle }: Props) {
 
         {/* Profile pill */}
         <div className="flex items-center gap-2 pl-2 pr-3 py-1.5 md:pl-3 md:pr-4 rounded-full bg-[#CBFFC2]">
-          <div className="w-7 h-7 rounded-full border border-[#0D631B] bg-[#0D631B] flex items-center justify-center text-white text-xs font-bold">
-            {initial}
+          <div className="w-7 h-7 rounded-full border border-[#0D631B] bg-[#0D631B] flex items-center justify-center text-white text-xs font-bold overflow-hidden flex-shrink-0">
+            {user?.image ? (
+              <Image
+                src={user.image}
+                alt={displayName}
+                width={28}
+                height={28}
+                className="w-full h-full object-cover"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <span>{initial}</span>
+            )}
           </div>
           <span className="text-sm font-medium text-[#0D631B] hidden sm:block">
             {displayName}

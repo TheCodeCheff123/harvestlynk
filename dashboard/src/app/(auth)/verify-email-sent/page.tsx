@@ -1,24 +1,31 @@
 "use client";
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authApi } from "@/lib/api";
-import { useState } from "react";
 
 function Content() {
   const searchParams = useSearchParams();
   const email = searchParams.get("email") ?? "";
-  const [resent, setResent] = useState(false);
-  const [resending, setResending] = useState(false);
+
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error" | "rate_limited">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
 
   async function handleResend() {
-    if (!email || resending) return;
-    setResending(true);
+    if (!email || status === "sending" || status === "sent") return;
+    setStatus("sending");
+    setErrorMsg("");
     try {
       await authApi.resendVerification(email);
-      setResent(true);
-    } catch { /* ignore */ } finally {
-      setResending(false);
+      setStatus("sent");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.toLowerCase().includes("rate") || msg.includes("429") || msg.toLowerCase().includes("too many")) {
+        setStatus("rate_limited");
+      } else {
+        setErrorMsg(msg || "Could not resend. Please try again later.");
+        setStatus("error");
+      }
     }
   }
 
@@ -36,21 +43,36 @@ function Content() {
           <p className="text-[#0D631B] font-semibold text-sm mb-6">{email}</p>
         )}
         <p className="text-gray-400 text-sm mb-8">
-          Click the link in the email to verify your account and log in. The link expires in 10 minutes.
+          Click the link in the email to verify your account and log in.
+          The link expires in 10 minutes. If you don&apos;t see it, check your spam folder.
         </p>
 
         <div className="space-y-3">
-          {resent ? (
+          {status === "sent" && (
             <p className="text-green-600 text-sm font-medium py-2">
-              <i className="ri-checkbox-circle-line mr-1" /> A new link has been sent.
+              <i className="ri-checkbox-circle-line mr-1" /> A new link has been sent. Check your inbox.
             </p>
-          ) : (
+          )}
+
+          {status === "rate_limited" && (
+            <p className="text-amber-600 text-sm font-medium py-2 bg-amber-50 rounded-xl px-3">
+              <i className="ri-time-line mr-1" /> You&apos;ve requested too many links. Please wait a few minutes before trying again.
+            </p>
+          )}
+
+          {status === "error" && errorMsg && (
+            <p className="text-red-500 text-sm font-medium py-2 bg-red-50 rounded-xl px-3">
+              <i className="ri-error-warning-line mr-1" /> {errorMsg}
+            </p>
+          )}
+
+          {status !== "sent" && (
             <button
               onClick={handleResend}
-              disabled={!email || resending}
+              disabled={!email || status === "sending" || status === "rate_limited"}
               className="w-full py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
             >
-              {resending ? (
+              {status === "sending" ? (
                 <><i className="ri-loader-4-line animate-spin mr-1" /> Sending…</>
               ) : (
                 "Resend verification email"

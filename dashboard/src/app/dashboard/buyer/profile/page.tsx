@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeUp, scaleIn } from "@/lib/motion";
 import { useAuth } from "@/context/AuthContext";
@@ -96,8 +97,18 @@ export default function BuyerProfile() {
             transition={{ delay: 0.1, type: "spring", stiffness: 260 }}
             className="relative flex-shrink-0"
           >
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-[#0D631B] flex items-center justify-center border-4 border-[#0D631B]">
-              <span className="text-2xl font-bold text-white">{initials}</span>
+            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-400 to-[#0D631B] flex items-center justify-center border-4 border-[#0D631B] overflow-hidden">
+              {user?.image ? (
+                <Image
+                  src={user.image}
+                  alt={displayName}
+                  fill
+                  className="object-cover"
+                  sizes="80px"
+                />
+              ) : (
+                <span className="text-2xl font-bold text-white">{initials}</span>
+              )}
             </div>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center border-2 border-white">
               <i className="ri-checkbox-circle-fill text-white text-xs" />

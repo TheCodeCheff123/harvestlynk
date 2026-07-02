@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { notificationsApi, type NotificationItem } from "@/lib/api";
+import { getStoredAccessToken, notificationsApi, type NotificationItem } from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 
 export function useNotifications() {
@@ -29,7 +29,7 @@ export function useNotifications() {
   }, [user]);
 
   useEffect(() => {
-    fetchAll();
+    queueMicrotask(() => { void fetchAll(); });
   }, [fetchAll]);
 
   // WebSocket connection for real-time notification push
@@ -40,7 +40,10 @@ export function useNotifications() {
     const wsUrl = base.replace(/^https/, "wss").replace(/^http/, "ws") + "/ws";
 
     function connect() {
-      const ws = new WebSocket(wsUrl);
+      const token = getStoredAccessToken();
+      if (!token) return;
+
+      const ws = new WebSocket(`${wsUrl}?token=${encodeURIComponent(token)}`);
       wsRef.current = ws;
 
       ws.onmessage = (event) => {

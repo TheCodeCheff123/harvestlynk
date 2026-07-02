@@ -1,11 +1,9 @@
-import { randomBytes, createHash } from "crypto";
-import { eq, and, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { users, wallets, refreshTokens, passwordResetTokens } from "../db/schema.js";
-import { hashPassword, comparePassword } from "../utils/password.js";
-import { signAccessToken, signRevokeToken, verifyRevokeToken, signEmailVerificationToken, verifyEmailVerificationToken } from "../utils/jwt.js";
-import { signupSchema, loginSchema } from "../validators/auth.validator.js";
-import { sendVerificationEmail, sendNewLoginAlert, sendPasswordResetEmail } from "../utils/email.js";
+import { users, wallets } from "../db/schema.js";
+import { signupSchema, loginSchema, googleAuthSchema } from "../validators/auth.validator.js";
+import { getAuthRedirectUrl, getSupabaseAdmin, getSupabaseUserNameParts, isSupabaseEmailVerified, } from "../utils/supabase.js";
+import { verifyEmailVerificationToken } from "../utils/jwt.js";
 // Minimal shape returned in auth responses (login, signup, verify)
 export const authUser = (user) => ({
     id: user.id,
@@ -41,18 +39,63 @@ export const safeUser = (user) => ({
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,
 });
-function generateRefreshToken() {
-    const raw = randomBytes(40).toString("hex");
-    const hash = createHash("sha256").update(raw).digest("hex");
-    return { raw, hash };
+function getSessionResponse(session, user) {
+    return {
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token,
+        user: authUser(user),
+    };
 }
-async function storeRefreshToken(userId, hash, ipAddress, userAgent) {
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    const [stored] = await db
-        .insert(refreshTokens)
-        .values({ userId, tokenHash: hash, ipAddress, userAgent, expiresAt })
-        .returning();
-    return stored;
+async function createWalletIfMissing(userId) {
+    await db.insert(wallets).values({
+        userId,
+        availableBalance: 0,
+        pendingBalance: 0,
+        totalPaidIn: 0,
+        totalPaidOut: 0,
+    }).onConflictDoNothing();
+}
+async function findLocalUserByEmail(email) {
+    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
+    return user;
+}
+async function createOrUpdateLocalProfile(opts) {
+    const email = opts.email.toLowerCase();
+    const existing = await findLocalUserByEmail(email);
+    if (existing) {
+        const [updated] = await db
+            .update(users)
+            .set({
+            emailVerified: opts.emailVerified || existing.emailVerified,
+            image: opts.image ?? existing.image,
+            lastActiveAt: new Date(),
+        })
+            .where(eq(users.id, existing.id))
+            .returning();
+        await createWalletIfMissing(existing.id);
+        return updated;
+    }
+    if (!opts.role) {
+        throw new Error("Role is required to create a HarvestLynk profile");
+    }
+    const [created] = await db.insert(users).values({
+        id: opts.supabaseUserId,
+        firstName: opts.firstName ?? "HarvestLynk",
+        lastName: opts.lastName ?? "User",
+        email,
+        passwordHash: "supabase-auth",
+        role: opts.role,
+        phoneNumber: opts.phoneNumber,
+        location: opts.location,
+        image: opts.image,
+        emailVerified: opts.emailVerified,
+        acceptedTerms: true,
+        lastActiveAt: new Date(),
+    }).returning();
+    if (!created)
+        throw new Error("Failed to create local profile");
+    await createWalletIfMissing(created.id);
+    return created;
 }
 export async function signup(req, res) {
     const parsed = signupSchema.safeParse(req.body);
@@ -61,7 +104,8 @@ export async function signup(req, res) {
         return;
     }
     const { firstName, lastName, email, password, phoneNumber, location, role } = parsed.data;
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+    const normalizedEmail = email.toLowerCase();
+    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, normalizedEmail)).limit(1);
     if (existing) {
         res.status(409).json({ error: "An account with this email already exists" });
         return;
@@ -73,27 +117,35 @@ export async function signup(req, res) {
             return;
         }
     }
-    const passwordHash = await hashPassword(password);
-    const [newUser] = await db.insert(users).values({ firstName, lastName, email, passwordHash, role, phoneNumber, location, acceptedTerms: true }).returning();
-    if (!newUser) {
-        res.status(500).json({ error: "Failed to create account" });
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.auth.signUp({
+        email: normalizedEmail,
+        password,
+        options: {
+            emailRedirectTo: getAuthRedirectUrl("/verify-email"),
+            data: {
+                firstName,
+                lastName,
+                phoneNumber,
+                location,
+                role,
+            },
+        },
+    });
+    if (error || !data.user) {
+        res.status(error?.status ?? 400).json({ error: error?.message ?? "Failed to create account" });
         return;
     }
-    await db.insert(wallets).values({
-        userId: newUser.id,
-        availableBalance: 0,
-        pendingBalance: 0,
-        totalPaidIn: 0,
-        totalPaidOut: 0,
-    }).onConflictDoNothing();
-    const emailToken = await signEmailVerificationToken(newUser.id, newUser.email);
-    const frontendUrl = process.env["FRONTEND_URL"] ?? "http://localhost:3000";
-    const verifyLink = `${frontendUrl}/verify-email?token=${emailToken}`;
-    sendVerificationEmail({
-        to: newUser.email,
-        name: `${newUser.firstName} ${newUser.lastName}`,
-        verifyLink,
-    }).catch(() => { });
+    await createOrUpdateLocalProfile({
+        supabaseUserId: data.user.id,
+        email: normalizedEmail,
+        emailVerified: isSupabaseEmailVerified(data.user),
+        role,
+        firstName,
+        lastName,
+        phoneNumber,
+        location,
+    });
     res.status(201).json({ message: "Account created. Please check your email to verify your account." });
 }
 export async function login(req, res) {
@@ -103,57 +155,96 @@ export async function login(req, res) {
         return;
     }
     const { email, password } = parsed.data;
-    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    if (!user) {
-        res.status(401).json({ error: "Invalid email or password" });
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error || !data.session || !data.user?.email) {
+        const message = error?.message?.toLowerCase().includes("email not confirmed")
+            ? "Please verify your email before logging in"
+            : "Invalid email or password";
+        res.status(error?.status === 400 ? 401 : error?.status ?? 401).json({ error: message });
         return;
     }
-    if (user.banned) {
-        res.status(403).json({ error: "This account has been suspended", reason: user.banReason });
+    const localUser = await createOrUpdateLocalProfile({
+        supabaseUserId: data.user.id,
+        email: data.user.email,
+        emailVerified: isSupabaseEmailVerified(data.user),
+    });
+    if (localUser.banned) {
+        res.status(403).json({ error: "This account has been suspended", reason: localUser.banReason });
         return;
     }
-    if (!user.emailVerified) {
-        res.status(403).json({ error: "Please verify your email before logging in" });
+    res.json(getSessionResponse(data.session, localUser));
+}
+export async function googleAuth(req, res) {
+    const parsed = googleAuthSchema.safeParse(req.body);
+    if (!parsed.success) {
+        res.status(400).json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors });
         return;
     }
-    const valid = await comparePassword(password, user.passwordHash);
-    if (!valid) {
-        res.status(401).json({ error: "Invalid email or password" });
+    const { idToken, role } = parsed.data;
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: "google",
+        token: idToken,
+    });
+    if (error || !data.session || !data.user?.email) {
+        res.status(error?.status ?? 401).json({ error: error?.message ?? "Invalid Google token" });
         return;
     }
-    await db.update(users).set({ lastActiveAt: new Date() }).where(eq(users.id, user.id));
-    const ip = req.ip ?? "unknown";
-    const ua = req.headers["user-agent"] ?? "unknown";
-    // Check for existing active sessions — send alert if found
-    const existingSessions = await db
-        .select()
-        .from(refreshTokens)
-        .where(and(eq(refreshTokens.userId, user.id), gt(refreshTokens.expiresAt, new Date())));
-    const accessToken = await signAccessToken({ userId: user.id, email: user.email, role: user.role });
-    const { raw: refreshToken, hash } = generateRefreshToken();
-    const newSession = await storeRefreshToken(user.id, hash, ip, ua);
-    if (existingSessions.length > 0) {
-        const revokeToken = await signRevokeToken(newSession.id);
-        const appUrl = process.env["APP_URL"] ?? "http://localhost:4000";
-        const revokeLink = `${appUrl}/api/v1/auth/revoke-session?token=${revokeToken}`;
-        // Fire-and-forget — alert must never block the login response
-        sendNewLoginAlert({
-            to: user.email,
-            name: `${user.firstName} ${user.lastName}`,
-            ipAddress: ip,
-            userAgent: ua,
-            loginTime: new Date(),
-            revokeLink,
-        }).catch(() => { });
+    const existing = await findLocalUserByEmail(data.user.email);
+    if (!existing && !role) {
+        await supabase.auth.admin.signOut(data.session.access_token, "global").catch(() => { });
+        res.status(404).json({ error: "No HarvestLynk profile found for this Google account. Please choose a role and sign up first." });
+        return;
     }
-    res.json({ accessToken, refreshToken, user: authUser(user) });
+    const { firstName, lastName } = getSupabaseUserNameParts(data.user);
+    const avatar = typeof data.user.user_metadata?.["avatar_url"] === "string"
+        ? data.user.user_metadata["avatar_url"]
+        : typeof data.user.user_metadata?.["picture"] === "string"
+            ? data.user.user_metadata["picture"]
+            : null;
+    const localUser = await createOrUpdateLocalProfile({
+        supabaseUserId: data.user.id,
+        email: data.user.email,
+        emailVerified: isSupabaseEmailVerified(data.user),
+        role,
+        firstName,
+        lastName,
+        image: avatar,
+    });
+    if (localUser.banned) {
+        res.status(403).json({ error: "This account has been suspended", reason: localUser.banReason });
+        return;
+    }
+    res.json(getSessionResponse(data.session, localUser));
 }
 export async function verifyEmail(req, res) {
     const token = typeof req.query["token"] === "string" ? req.query["token"] : null;
+    const refreshToken = typeof req.query["refreshToken"] === "string" ? req.query["refreshToken"] : null;
     if (!token) {
         res.status(400).json({ error: "Token is required" });
         return;
     }
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.auth.getUser(token);
+    if (!error && data.user?.email) {
+        const localUser = await createOrUpdateLocalProfile({
+            supabaseUserId: data.user.id,
+            email: data.user.email,
+            emailVerified: isSupabaseEmailVerified(data.user),
+        });
+        if (!localUser.emailVerified) {
+            res.status(400).json({ error: "Email is not verified yet. Please use the latest link from your inbox." });
+            return;
+        }
+        res.json({
+            accessToken: token,
+            refreshToken: refreshToken ?? "",
+            user: authUser(localUser),
+        });
+        return;
+    }
+    // Backward-compatible fallback for older local verification links.
     try {
         const { userId } = await verifyEmailVerificationToken(token);
         const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
@@ -161,17 +252,8 @@ export async function verifyEmail(req, res) {
             res.status(404).json({ error: "User not found" });
             return;
         }
-        if (user.emailVerified) {
-            res.status(400).json({ error: "Email already verified" });
-            return;
-        }
-        await db.update(users).set({ emailVerified: true }).where(eq(users.id, userId));
-        const ip = req.ip ?? "unknown";
-        const ua = req.headers["user-agent"] ?? "unknown";
-        const accessToken = await signAccessToken({ userId: user.id, email: user.email, role: user.role });
-        const { raw: refreshToken, hash } = generateRefreshToken();
-        await storeRefreshToken(user.id, hash, ip, ua);
-        res.json({ accessToken, refreshToken, user: authUser({ ...user, emailVerified: true }) });
+        const [updated] = await db.update(users).set({ emailVerified: true }).where(eq(users.id, userId)).returning();
+        res.json({ accessToken: "", refreshToken: "", user: authUser(updated) });
     }
     catch {
         res.status(400).json({ error: "Invalid or expired verification link. Please request a new one." });
@@ -183,20 +265,15 @@ export async function resendVerification(req, res) {
         res.status(400).json({ error: "Email is required" });
         return;
     }
-    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase())).limit(1);
-    // Always respond the same way to prevent email enumeration
-    if (!user || user.emailVerified) {
-        res.json({ message: "If that email exists and is unverified, a new link has been sent." });
+    const { error } = await getSupabaseAdmin().auth.resend({
+        type: "signup",
+        email: email.toLowerCase().trim(),
+        options: { emailRedirectTo: getAuthRedirectUrl("/verify-email") },
+    });
+    if (error) {
+        res.status(error.status ?? 400).json({ error: error.message });
         return;
     }
-    const token = await signEmailVerificationToken(user.id, user.email);
-    const frontendUrl = process.env["FRONTEND_URL"] ?? "http://localhost:3000";
-    const verifyLink = `${frontendUrl}/verify-email?token=${token}`;
-    sendVerificationEmail({
-        to: user.email,
-        name: `${user.firstName} ${user.lastName}`,
-        verifyLink,
-    }).catch(() => { });
     res.json({ message: "If that email exists and is unverified, a new link has been sent." });
 }
 export async function refresh(req, res) {
@@ -205,81 +282,39 @@ export async function refresh(req, res) {
         res.status(400).json({ error: "Refresh token is required" });
         return;
     }
-    const hash = createHash("sha256").update(refreshToken).digest("hex");
-    const now = new Date();
-    const [stored] = await db
-        .select()
-        .from(refreshTokens)
-        .where(and(eq(refreshTokens.tokenHash, hash), gt(refreshTokens.expiresAt, now)))
-        .limit(1);
-    if (!stored) {
-        res.status(401).json({ error: "Invalid or expired refresh token" });
+    const { data, error } = await getSupabaseAdmin().auth.refreshSession({ refresh_token: refreshToken });
+    if (error || !data.session || !data.user?.email) {
+        res.status(error?.status ?? 401).json({ error: error?.message ?? "Invalid or expired refresh token" });
         return;
     }
-    const [user] = await db.select().from(users).where(eq(users.id, stored.userId)).limit(1);
-    if (!user || user.banned) {
+    const localUser = await createOrUpdateLocalProfile({
+        supabaseUserId: data.user.id,
+        email: data.user.email,
+        emailVerified: isSupabaseEmailVerified(data.user),
+    });
+    if (localUser.banned) {
         res.status(401).json({ error: "User not found or suspended" });
         return;
     }
-    const ip = req.ip ?? "unknown";
-    const ua = req.headers["user-agent"] ?? "unknown";
-    // Rotate: delete old token, issue new pair
-    await db.delete(refreshTokens).where(eq(refreshTokens.id, stored.id));
-    const accessToken = await signAccessToken({ userId: user.id, email: user.email, role: user.role });
-    const { raw: newRefreshToken, hash: newHash } = generateRefreshToken();
-    await storeRefreshToken(user.id, newHash, ip, ua);
-    res.json({ accessToken, refreshToken: newRefreshToken });
+    res.json({ accessToken: data.session.access_token, refreshToken: data.session.refresh_token });
 }
 export async function logout(req, res) {
-    const { refreshToken } = req.body;
-    if (refreshToken) {
-        const hash = createHash("sha256").update(refreshToken).digest("hex");
-        await db.delete(refreshTokens).where(eq(refreshTokens.tokenHash, hash));
+    const header = req.headers.authorization;
+    const accessToken = header?.startsWith("Bearer ") ? header.slice(7) : null;
+    if (accessToken) {
+        const { error } = await getSupabaseAdmin().auth.admin.signOut(accessToken, "local");
+        if (error) {
+            res.status(error.status ?? 400).json({ error: error.message });
+            return;
+        }
     }
     res.json({ message: "Logged out" });
 }
-// Called from email link — no auth required, token is self-contained signed JWT
-export async function revokeSession(req, res) {
-    const token = typeof req.query["token"] === "string" ? req.query["token"] : null;
-    if (!token) {
-        res.status(400).json({ error: "Token is required" });
-        return;
-    }
-    try {
-        const { sessionId } = await verifyRevokeToken(token);
-        await db.delete(refreshTokens).where(eq(refreshTokens.id, sessionId));
-        res.send(`
-      <html><body style="font-family:sans-serif;max-width:480px;margin:80px auto;text-align:center">
-        <h2 style="color:#1a1a1a">Device logged out</h2>
-        <p style="color:#555">The unknown device has been successfully logged out of your account.</p>
-        <p style="color:#555">If you continue to see suspicious activity, please change your password.</p>
-      </body></html>
-    `);
-    }
-    catch {
-        res.status(400).json({ error: "Invalid or expired revoke link" });
-    }
+export async function revokeSession(_req, res) {
+    res.status(410).json({ error: "Session revoke links are managed by Supabase Auth now." });
 }
-// List all active sessions for the authenticated user
-export async function getSessions(req, res) {
-    const sessions = await db
-        .select({
-        id: refreshTokens.id,
-        ipAddress: refreshTokens.ipAddress,
-        userAgent: refreshTokens.userAgent,
-        createdAt: refreshTokens.createdAt,
-        expiresAt: refreshTokens.expiresAt,
-    })
-        .from(refreshTokens)
-        .where(and(eq(refreshTokens.userId, req.user.userId), gt(refreshTokens.expiresAt, new Date())))
-        .orderBy(refreshTokens.createdAt);
-    res.json(sessions.map(s => ({
-        session_id: s.id,
-        ip_address: s.ipAddress,
-        user_agent: s.userAgent,
-        created_at: s.createdAt,
-        expires_at: s.expiresAt,
-    })));
+export async function getSessions(_req, res) {
+    res.json([]);
 }
 export async function forgotPassword(req, res) {
     const { email } = req.body;
@@ -287,25 +322,13 @@ export async function forgotPassword(req, res) {
         res.status(400).json({ error: "Email is required" });
         return;
     }
-    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase().trim())).limit(1);
-    // Always respond the same way to prevent email enumeration
-    if (!user || !user.emailVerified) {
-        res.json({ message: "If that email exists and is verified, a reset link has been sent." });
+    const { error } = await getSupabaseAdmin().auth.resetPasswordForEmail(email.toLowerCase().trim(), {
+        redirectTo: getAuthRedirectUrl("/reset-password"),
+    });
+    if (error) {
+        res.status(error.status ?? 400).json({ error: error.message });
         return;
     }
-    // Invalidate any existing reset tokens for this user
-    await db.delete(passwordResetTokens).where(eq(passwordResetTokens.userId, user.id));
-    const raw = randomBytes(40).toString("hex");
-    const hash = createHash("sha256").update(raw).digest("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-    await db.insert(passwordResetTokens).values({ userId: user.id, tokenHash: hash, expiresAt });
-    const frontendUrl = process.env["FRONTEND_URL"] ?? "http://localhost:3000";
-    const resetLink = `${frontendUrl}/reset-password?token=${raw}`;
-    sendPasswordResetEmail({
-        to: user.email,
-        name: `${user.firstName} ${user.lastName}`,
-        resetLink,
-    }).catch(() => { });
     res.json({ message: "If that email exists and is verified, a reset link has been sent." });
 }
 export async function resetPassword(req, res) {
@@ -318,28 +341,17 @@ export async function resetPassword(req, res) {
         res.status(400).json({ error: "Password must be at least 8 characters" });
         return;
     }
-    const hash = createHash("sha256").update(token).digest("hex");
-    const now = new Date();
-    const [stored] = await db
-        .select()
-        .from(passwordResetTokens)
-        .where(and(eq(passwordResetTokens.tokenHash, hash), gt(passwordResetTokens.expiresAt, now)))
-        .limit(1);
-    if (!stored || stored.usedAt) {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) {
         res.status(400).json({ error: "Invalid or expired reset link. Please request a new one." });
         return;
     }
-    const [user] = await db.select().from(users).where(eq(users.id, stored.userId)).limit(1);
-    if (!user) {
-        res.status(400).json({ error: "Invalid reset link" });
+    const { error: updateError } = await supabase.auth.admin.updateUserById(data.user.id, { password });
+    if (updateError) {
+        res.status(updateError.status ?? 400).json({ error: updateError.message });
         return;
     }
-    const passwordHash = await hashPassword(password);
-    await Promise.all([
-        db.update(users).set({ passwordHash }).where(eq(users.id, user.id)),
-        db.update(passwordResetTokens).set({ usedAt: now }).where(eq(passwordResetTokens.id, stored.id)),
-        db.delete(refreshTokens).where(eq(refreshTokens.userId, user.id)),
-    ]);
     res.json({ message: "Password updated. Please log in with your new password." });
 }
 export async function changePassword(req, res) {
@@ -352,40 +364,47 @@ export async function changePassword(req, res) {
         res.status(400).json({ error: "New password must be at least 8 characters" });
         return;
     }
+    if (currentPassword === newPassword) {
+        res.status(400).json({ error: "New password must be different from your current password" });
+        return;
+    }
     const [user] = await db.select().from(users).where(eq(users.id, req.user.userId)).limit(1);
     if (!user) {
         res.status(404).json({ error: "User not found" });
         return;
     }
-    const valid = await comparePassword(currentPassword, user.passwordHash);
-    if (!valid) {
+    const supabase = getSupabaseAdmin();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+    });
+    if (signInError) {
         res.status(400).json({ error: "Current password is incorrect" });
         return;
     }
-    if (currentPassword === newPassword) {
-        res.status(400).json({ error: "New password must be different from your current password" });
+    const supabaseUserId = req.user.supabaseUserId;
+    if (!supabaseUserId) {
+        res.status(400).json({ error: "Supabase user id not found for current session" });
         return;
     }
-    const passwordHash = await hashPassword(newPassword);
-    await db.update(users).set({ passwordHash }).where(eq(users.id, user.id));
+    const { error: updateError } = await supabase.auth.admin.updateUserById(supabaseUserId, { password: newPassword });
+    if (updateError) {
+        res.status(updateError.status ?? 400).json({ error: updateError.message });
+        return;
+    }
     res.json({ message: "Password changed successfully" });
 }
-// Revoke all sessions except the one making this request
 export async function revokeOtherSessions(req, res) {
-    const { currentRefreshToken } = req.body;
-    if (!currentRefreshToken) {
-        res.status(400).json({ error: "currentRefreshToken is required" });
+    const token = req.authToken;
+    if (!token) {
+        res.status(401).json({ error: "Not authenticated" });
         return;
     }
-    const currentHash = createHash("sha256").update(currentRefreshToken).digest("hex");
-    const all = await db
-        .select({ id: refreshTokens.id, tokenHash: refreshTokens.tokenHash })
-        .from(refreshTokens)
-        .where(eq(refreshTokens.userId, req.user.userId));
-    const toDelete = all.filter(s => s.tokenHash !== currentHash).map(s => s.id);
-    for (const id of toDelete) {
-        await db.delete(refreshTokens).where(eq(refreshTokens.id, id));
+    const { error } = await getSupabaseAdmin().auth.admin.signOut(token, "others");
+    if (error) {
+        res.status(error.status ?? 400).json({ error: error.message });
+        return;
     }
-    res.json({ message: `${toDelete.length} other session(s) revoked` });
+    res.json({ message: "Other sessions revoked" });
 }
 //# sourceMappingURL=auth.controller.js.map

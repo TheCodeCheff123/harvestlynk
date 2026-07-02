@@ -28,6 +28,13 @@ export function getStoredRefreshToken(): string | null {
   return localStorage.getItem("hl_refresh_token");
 }
 
+export function getStoredAccessToken(): string | null {
+  if (_accessToken) return _accessToken;
+  if (typeof window === "undefined") return null;
+  _accessToken = localStorage.getItem("hl_access_token");
+  return _accessToken;
+}
+
 async function doRefresh(): Promise<void> {
   const rt = getStoredRefreshToken();
   if (!rt) throw new Error("No refresh token");
@@ -269,8 +276,12 @@ async function apiFetch<T>(path: string, init?: RequestInit, isRetry = false): P
 
   const res = await fetch(path, { ...init, headers });
 
-  // Auto-refresh on 401, deduplicated across concurrent calls
-  if (res.status === 401 && !isRetry) {
+  // Auto-refresh on 401, deduplicated across concurrent calls.
+  // Skip for auth mutation endpoints — their 401s mean wrong credentials,
+  // not an expired session, so we must NOT trigger the refresh loop.
+  const AUTH_NO_REFRESH = ["/auth/login", "/auth/signup", "/auth/google", "/auth/refresh"];
+  const isAuthEndpoint = AUTH_NO_REFRESH.some((p) => path.includes(p));
+  if (res.status === 401 && !isRetry && !isAuthEndpoint) {
     if (!_refreshing) {
       _refreshing = doRefresh().finally(() => { _refreshing = null; });
     }
@@ -335,6 +346,12 @@ export const authApi = {
       { method: "POST", body: JSON.stringify({ email, password }) }
     ),
 
+  google: (idToken: string, role?: "farmer" | "buyer") =>
+    apiFetch<{ accessToken: string; refreshToken: string; user: { id: string; email: string; name: string; role: "farmer" | "buyer" } }>(
+      "/api/v1/auth/google",
+      { method: "POST", body: JSON.stringify({ idToken, role }) }
+    ),
+
   logout: (refreshToken: string) =>
     apiFetch<void>("/api/v1/auth/logout", {
       method: "POST",
@@ -353,9 +370,9 @@ export const authApi = {
       body: JSON.stringify({ token, password }),
     }),
 
-  verifyEmail: (token: string) =>
+  verifyEmail: (token: string, refreshToken?: string) =>
     apiFetch<{ accessToken: string; refreshToken: string; user: { id: string; role: "farmer" | "buyer" } }>(
-      `/api/v1/auth/verify-email?token=${encodeURIComponent(token)}`
+      `/api/v1/auth/verify-email?token=${encodeURIComponent(token)}${refreshToken ? `&refreshToken=${encodeURIComponent(refreshToken)}` : ""}`
     ),
 
   resendVerification: (email: string) =>

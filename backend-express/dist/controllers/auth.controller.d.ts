@@ -1,7 +1,8 @@
 import type { Request, Response } from "express";
 import { users } from "../db/schema.js";
 import type { AuthRequest } from "../middleware/auth.js";
-export declare const authUser: (user: typeof users.$inferSelect) => {
+type LocalUser = typeof users.$inferSelect;
+export declare const authUser: (user: LocalUser) => {
     id: string;
     name: string;
     email: string;
@@ -9,7 +10,7 @@ export declare const authUser: (user: typeof users.$inferSelect) => {
     image: string | null;
     emailVerified: boolean;
 };
-export declare const safeUser: (user: typeof users.$inferSelect) => {
+export declare const safeUser: (user: LocalUser) => {
     id: string;
     name: string;
     firstName: string;
@@ -36,12 +37,13 @@ export declare const safeUser: (user: typeof users.$inferSelect) => {
 };
 export declare function signup(req: Request, res: Response): Promise<void>;
 export declare function login(req: Request, res: Response): Promise<void>;
+export declare function googleAuth(req: Request, res: Response): Promise<void>;
 export declare function verifyEmail(req: Request, res: Response): Promise<void>;
 export declare function resendVerification(req: Request, res: Response): Promise<void>;
 export declare function refresh(req: Request, res: Response): Promise<void>;
 export declare function logout(req: Request, res: Response): Promise<void>;
-export declare function revokeSession(req: Request, res: Response): Promise<void>;
-export declare function getSessions(req: Request & {
+export declare function revokeSession(_req: Request, res: Response): Promise<void>;
+export declare function getSessions(_req: Request & {
     user?: {
         userId: string;
     };
@@ -50,8 +52,7 @@ export declare function forgotPassword(req: Request, res: Response): Promise<voi
 export declare function resetPassword(req: Request, res: Response): Promise<void>;
 export declare function changePassword(req: AuthRequest, res: Response): Promise<void>;
 export declare function revokeOtherSessions(req: Request & {
-    user?: {
-        userId: string;
-    };
+    authToken?: string;
 }, res: Response): Promise<void>;
+export {};
 //# sourceMappingURL=auth.controller.d.ts.map

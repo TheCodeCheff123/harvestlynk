@@ -7,7 +7,10 @@ import { authApi } from "@/lib/api";
 function ResetForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const token = searchParams.get("token") ?? "";
+  const hashParams = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.hash.replace(/^#/, ""))
+    : new URLSearchParams();
+  const token = hashParams.get("access_token") ?? searchParams.get("token") ?? "";
 
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
