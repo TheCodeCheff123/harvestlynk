@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import request from "supertest";
 import app from "../app.js";
 import { db } from "../db/index.js";
-import { users, refreshTokens } from "../db/schema.js";
+import { users, refreshTokens, notifications } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { hashPassword } from "../utils/password.js";
 import { signEmailVerificationToken } from "../utils/jwt.js";
@@ -109,6 +109,16 @@ describe("POST /api/v1/auth/signup", () => {
       const [b] = await db.select().from(users).where(eq(users.email, buyer.email));
       expect(f?.role).toBe("farmer");
       expect(b?.role).toBe("buyer");
+    });
+
+    it("creates an important verification notification for new farmers", async () => {
+      await signup(farmer);
+      const [user] = await db.select().from(users).where(eq(users.email, farmer.email));
+      const rows = await db.select().from(notifications).where(eq(notifications.userId, user!.id));
+
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows[0]?.type).toBe("system");
+      expect(rows[0]?.title).toMatch(/complete liveness verification/i);
     });
   });
 

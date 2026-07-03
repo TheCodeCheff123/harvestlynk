@@ -203,6 +203,18 @@ describe("POST /api/v1/marketplace/listings — liveness gate", () => {
     expect(res.body.error).toMatch(/liveness verification/i);
   });
 
+  it("allows saving a draft without liveness check", async () => {
+    const { accessToken } = await createVerifiedUser(farmer);
+
+    const res = await request(app)
+      .post(`${BASE_MARKET}/listings`)
+      .set("Authorization", `Bearer ${accessToken}`)
+      .send({ ...validListing, status: "paused" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.status).toBe("paused");
+  });
+
   it("allows listing creation after liveness check passes", async () => {
     const { accessToken, userId } = await createVerifiedUser(farmer);
     await setLivenessVerified(userId);

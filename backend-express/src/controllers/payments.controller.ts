@@ -1,7 +1,7 @@
 import type { Request, Response } from "express";
 import { eq, or } from "drizzle-orm";
 import { db } from "../db/index.js";
-import { orders, payments, payouts, wallets, transactions } from "../db/schema.js";
+import { orders, payments, payouts, wallets, transactions, walletLedgerEntries } from "../db/schema.js";
 import { verifyWebhookSignature } from "../utils/nomba.js";
 import { createNotification } from "../utils/notifications.js";
 
@@ -151,6 +151,20 @@ async function handlePaymentSuccess(payload: any, res: Response) {
         .set({ pendingBalance: newPendingBalance, totalPaidIn: newTotalPaidIn, updatedAt: new Date() })
         .where(eq(wallets.walletId, wallet.walletId));
 
+      await db.insert(walletLedgerEntries).values({
+        walletId: wallet.walletId,
+        userId: order.farmerId,
+        type: "credit",
+        amount: order.totalAmount,
+        balanceBefore: wallet.pendingBalance,
+        balanceAfter: newPendingBalance,
+        referenceId: order.orderId,
+        referenceType: "order",
+        description: `Escrow credit for order ${order.orderRef}`,
+        status: "completed",
+        metadata: payload,
+      });
+
       await db.insert(transactions).values({
         walletId: wallet.walletId,
         userId: order.farmerId,
@@ -203,6 +217,10 @@ async function handlePayoutSuccess(payload: any, res: Response) {
     await db.update(wallets)
       .set({ totalPaidOut: wallet.totalPaidOut + payout.netAmount, updatedAt: new Date() })
       .where(eq(wallets.walletId, wallet.walletId));
+
+      await db.update(walletLedgerEntries)
+        .set({ status: "completed", updatedAt: new Date() })
+        .where(eq(walletLedgerEntries.referenceId, payout.payoutId));
   }
 
   await db.update(transactions)
@@ -250,9 +268,26 @@ async function handlePayoutFailure(payload: any, res: Response) {
       .set({ availableBalance: restoredBalance, updatedAt: new Date() })
       .where(eq(wallets.walletId, wallet.walletId));
 
+    await db.update(walletLedgerEntries)
+      .set({ status: "failed", updatedAt: new Date() })
+      .where(eq(walletLedgerEntries.referenceId, payout.payoutId));
+
     await db.update(transactions)
       .set({ status: "failed" })
       .where(eq(transactions.referenceId, payout.payoutId));
+
+    await db.insert(walletLedgerEntries).values({
+      walletId: wallet.walletId,
+      userId: payout.farmerId,
+      type: "credit",
+      amount: payout.netAmount,
+      balanceBefore: wallet.availableBalance,
+      balanceAfter: restoredBalance,
+      referenceId: payout.payoutId,
+      referenceType: "payout_refund",
+      description: `Refund failed payout ${payout.payoutId}`,
+      status: "completed",
+    });
 
     await db.insert(transactions).values({
       walletId: wallet.walletId,

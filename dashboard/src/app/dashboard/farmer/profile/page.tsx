@@ -33,11 +33,16 @@ function relativeDate(iso: string): string {
 
 export default function Profile() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [unverified, setUnverified] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [livenessFile, setLivenessFile] = useState<File | null>(null);
+  const [livenessPreview, setLivenessPreview] = useState<string | null>(null);
+  const [livenessLoading, setLivenessLoading] = useState(false);
+  const [livenessMessage, setLivenessMessage] = useState("");
+  const [livenessError, setLivenessError] = useState("");
 
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -81,6 +86,28 @@ export default function Profile() {
 
   const activeListings = listings.filter((l) => l.status === "active");
   const completedTxs = transactions.filter((t) => t.status === "completed" && t.type === "credit");
+
+  async function handleLivenessSubmit() {
+    if (!livenessFile) {
+      setLivenessError("Please choose a selfie image first.");
+      return;
+    }
+
+    setLivenessError("");
+    setLivenessMessage("");
+    setLivenessLoading(true);
+    try {
+      const result = await usersApi.livenessCheck(livenessFile);
+      setLivenessMessage(result.message);
+      setLivenessFile(null);
+      setLivenessPreview(null);
+      await refreshUser();
+    } catch (err) {
+      setLivenessError(err instanceof Error ? err.message : "Liveness verification failed.");
+    } finally {
+      setLivenessLoading(false);
+    }
+  }
 
   return (
     <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
@@ -218,6 +245,65 @@ export default function Profile() {
                 </motion.div>
               ))}
             </div>
+
+            {!user?.liveness_verified && (
+              <div className="mt-5 pt-5 border-t border-gray-100 space-y-3">
+                <div>
+                  <p className="text-sm font-semibold text-gray-900">Complete Liveness Verification</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Upload a clear selfie to unlock publishing active listings and complete farmer verification.
+                  </p>
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  id="liveness-selfie-input"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] ?? null;
+                    setLivenessError("");
+                    setLivenessMessage("");
+                    setLivenessFile(file);
+                    if (!file) {
+                      setLivenessPreview(null);
+                      return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (ev) => setLivenessPreview(ev.target?.result as string);
+                    reader.readAsDataURL(file);
+                  }}
+                />
+                {livenessPreview ? (
+                  <div className="space-y-3">
+                    <img src={livenessPreview} alt="Liveness selfie preview" className="w-full h-48 object-cover rounded-xl border border-gray-200" />
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleLivenessSubmit}
+                        disabled={livenessLoading}
+                        className="flex-1 py-2.5 rounded-xl bg-[#0D631B] text-white text-sm font-semibold hover:bg-[#0a4f15] transition-colors disabled:opacity-70"
+                      >
+                        {livenessLoading ? "Verifying..." : "Submit Selfie"}
+                      </button>
+                      <label htmlFor="liveness-selfie-input" className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium cursor-pointer hover:bg-gray-50">
+                        Change
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <label htmlFor="liveness-selfie-input" className="block w-full rounded-xl border-2 border-dashed border-gray-200 px-4 py-6 text-center cursor-pointer hover:border-[#0D631B] hover:bg-green-50/30 transition-colors">
+                    <i className="ri-camera-line text-2xl text-[#0D631B]" />
+                    <p className="mt-2 text-sm font-medium text-gray-800">Upload selfie for liveness check</p>
+                    <p className="text-xs text-gray-400 mt-1">Use a clear front-facing photo in good lighting.</p>
+                  </label>
+                )}
+                {livenessMessage && (
+                  <p className="text-green-600 text-xs p-2.5 bg-green-50 rounded-xl">{livenessMessage}</p>
+                )}
+                {livenessError && (
+                  <p className="text-red-500 text-xs p-2.5 bg-red-50 rounded-xl">{livenessError}</p>
+                )}
+              </div>
+            )}
           </div>
         </motion.div>
 

@@ -9,6 +9,7 @@ import {
   getSupabaseUserNameParts,
   isSupabaseEmailVerified,
 } from "../utils/supabase.js";
+import { createNotification } from "../utils/notifications.js";
 import { verifyEmailVerificationToken } from "../utils/jwt.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
@@ -185,6 +186,16 @@ export async function signup(req: Request, res: Response) {
     phoneNumber,
     location,
   });
+
+    if (role === "farmer") {
+      await createNotification({
+        userId: data.user.id,
+        type: "system",
+        title: "Important: complete liveness verification",
+        message: "Please complete liveness verification before publishing listings or requesting certain farmer actions.",
+        referenceType: "liveness_verification",
+      });
+    }
 
   res.status(201).json({ message: "Account created. Please check your email to verify your account." });
 }

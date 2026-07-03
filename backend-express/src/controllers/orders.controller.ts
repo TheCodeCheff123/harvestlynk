@@ -2,7 +2,7 @@ import type { Response } from "express";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/index.js";
-import { orders, listings, users, wallets, transactions } from "../db/schema.js";
+import { orders, listings, users, wallets, transactions, walletLedgerEntries } from "../db/schema.js";
 import { generateOrderRef } from "../utils/orderRef.js";
 import { createNotification } from "../utils/notifications.js";
 import { createCheckoutLink } from "../utils/nomba.js";
@@ -293,6 +293,20 @@ export async function confirmDelivery(req: AuthRequest, res: Response) {
     await db.update(wallets)
       .set({ pendingBalance: newPending, availableBalance: newAvailable, updatedAt: new Date() })
       .where(eq(wallets.walletId, wallet.walletId));
+
+    await db.insert(walletLedgerEntries).values({
+      walletId: wallet.walletId,
+      userId: order.farmerId,
+      type: "credit",
+      amount: order.totalAmount,
+      balanceBefore: wallet.availableBalance,
+      balanceAfter: newAvailable,
+      referenceId: order.orderId,
+      referenceType: "order_release",
+      description: `Release escrow for order ${order.orderRef}`,
+      status: "completed",
+      metadata: { orderRef: order.orderRef },
+    });
 
     await db.insert(transactions).values({
       walletId: wallet.walletId,

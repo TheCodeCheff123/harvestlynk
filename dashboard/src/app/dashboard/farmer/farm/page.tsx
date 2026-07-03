@@ -37,6 +37,8 @@ function MyFarmInner() {
   const [showModal, setShowModal] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
   const [loadingListings, setLoadingListings] = useState(true);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState("");
 
   const fetchListings = useCallback(async () => {
     setLoadingListings(true);
@@ -68,6 +70,19 @@ function MyFarmInner() {
       setListings((prev) => prev.filter((l) => l.listing_id !== id));
     } catch {
       // ignore
+    }
+  }
+
+  async function handlePublish(id: string) {
+    setActionError("");
+    setActionLoadingId(id);
+    try {
+      await marketplaceApi.updateListing(id, { status: "active" });
+      await fetchListings();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to publish listing.");
+    } finally {
+      setActionLoadingId(null);
     }
   }
 
@@ -246,12 +261,21 @@ function MyFarmInner() {
                       </td>
                       <td className="px-4 md:px-6 py-4 text-gray-500">{relativeDate(row.created_at)}</td>
                       <td className="px-4 md:px-6 py-4">
-                        <button
-                          onClick={() => handleDelete(row.listing_id)}
-                          className="text-red-500 font-medium text-sm hover:underline"
-                        >
-                          Delete
-                        </button>
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handlePublish(row.listing_id)}
+                            disabled={actionLoadingId === row.listing_id}
+                            className="text-[#0D631B] font-medium text-sm hover:underline disabled:opacity-60"
+                          >
+                            {actionLoadingId === row.listing_id ? "Publishing..." : "Publish"}
+                          </button>
+                          <button
+                            onClick={() => handleDelete(row.listing_id)}
+                            className="text-red-500 font-medium text-sm hover:underline"
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -259,6 +283,11 @@ function MyFarmInner() {
               </tbody>
             </table>
           </div>
+          {actionError && (
+            <div className="px-4 md:px-6 py-4 border-t border-gray-100 bg-red-50 text-red-600 text-sm">
+              {actionError}
+            </div>
+          )}
         </motion.div>
       )}
     </motion.div>

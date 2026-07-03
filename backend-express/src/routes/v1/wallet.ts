@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { getBanks, getBalance, getTransactions, verifyBank, withdraw } from "../../controllers/wallet.controller.js";
+import { getBanks, getBalance, getTransactions, getLedgerEntries, verifyBank, withdraw } from "../../controllers/wallet.controller.js";
 import { authenticate } from "../../middleware/auth.js";
 
 const router: IRouter = Router();
@@ -10,6 +10,7 @@ router.use(authenticate);
 
 router.get("/balance", getBalance);
 router.get("/transactions", getTransactions);
+router.get("/ledger", getLedgerEntries);
 router.get("/verify-bank", verifyBank);
 router.post("/withdraw", withdraw);
 

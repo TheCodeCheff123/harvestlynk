@@ -1,7 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
 import { marketplaceApi, type CreateListingData } from "@/lib/api";
-import Image from "next/image";
 
 const CATEGORIES = [
   "Grains & Cereals",
@@ -260,8 +259,8 @@ export default function ListProductModal({ onClose, onCreated }: Props) {
             <p className="text-xs font-bold text-[#0D631B] tracking-widest uppercase mb-4">AI Verification Preview</p>
             <input ref={photoRef} type="file" accept="image/*" className="hidden" onChange={onFileChange} />
             {preview ? (
-              <div className="relative w-full rounded-2xl overflow-hidden border border-gray-200">
-                <Image src={preview} alt="Product preview" fill className="object-cover" />
+              <div className="relative w-full h-64 sm:h-72 rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
+                <img src={preview} alt="Product preview" className="w-full h-full object-contain bg-gray-50" />
                 <button
                   onClick={() => { setPreview(null); setImageFile(null); if (photoRef.current) photoRef.current.value = ""; }}
                   className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70 transition-colors"

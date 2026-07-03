@@ -14,10 +14,12 @@ import {
   setTokens,
   clearTokens,
   getStoredRefreshToken,
+  setSessionExpiredHandler,
   type User,
   type WalletBalance,
   type SignupData,
 } from "@/lib/api";
+import { useRouter } from "next/navigation";
 
 interface AuthContextValue {
   user: User | null;
@@ -65,9 +67,24 @@ const DEV_USER: User = {
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(DEV_BYPASS ? DEV_USER : null);
   const [wallet, setWallet] = useState<WalletBalance | null>(DEV_BYPASS ? DEV_USER.wallet : null);
   const [loading, setLoading] = useState(!DEV_BYPASS);
+
+  useEffect(() => {
+    if (DEV_BYPASS) return;
+
+    setSessionExpiredHandler(() => {
+      clearTokens();
+      setUser(null);
+      setWallet(null);
+      setLoading(false);
+      router.replace("/login");
+    });
+
+    return () => setSessionExpiredHandler(null);
+  }, [router]);
 
   // On mount: hydrate from cache immediately for fast paint, then silently
   // restore the session from the stored refresh token.

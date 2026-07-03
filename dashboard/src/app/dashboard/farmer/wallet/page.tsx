@@ -168,8 +168,8 @@ export default function Wallet() {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#0D631B] mb-4 bg-white disabled:cursor-not-allowed disabled:bg-gray-50"
             >
               <option value="">{bankLoading ? "Loading banks..." : "Select a bank..."}</option>
-              {banks.map((b) => (
-                <option key={b.code} value={b.code}>{b.name}</option>
+              {banks.map((b, index) => (
+                <option key={`${b.code}-${index}`} value={b.code}>{b.name}</option>
               ))}
             </select>
 

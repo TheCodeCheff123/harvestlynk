@@ -63,7 +63,7 @@ export default function Login() {
 
     setLoading(true);
     try {
-      const user = await loginWithGoogle(credentialResponse.credential, role);
+      const user = await loginWithGoogle(credentialResponse.credential);
       const dest = user.role === "farmer" ? "/dashboard/farmer" : "/dashboard/buyer";
       router.push(dest);
     } catch (err) {

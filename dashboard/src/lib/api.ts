@@ -4,6 +4,11 @@
 
 let _accessToken: string | null = null;
 let _refreshing: Promise<void> | null = null;
+let _onSessionExpired: (() => void) | null = null;
+
+export function setSessionExpiredHandler(handler: (() => void) | null) {
+  _onSessionExpired = handler;
+}
 
 export function setTokens(accessToken: string, refreshToken: string) {
   _accessToken = accessToken;
@@ -47,6 +52,7 @@ async function doRefresh(): Promise<void> {
 
   if (!res.ok) {
     clearTokens();
+    _onSessionExpired?.();
     throw new Error("Session expired. Please log in again.");
   }
 
@@ -289,6 +295,7 @@ async function apiFetch<T>(path: string, init?: RequestInit, isRetry = false): P
     try {
       await _refreshing;
     } catch {
+      _onSessionExpired?.();
       throw new Error("Your session has expired. Please log in again.");
     }
     return apiFetch<T>(path, init, true);

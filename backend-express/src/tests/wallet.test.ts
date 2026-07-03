@@ -207,6 +207,40 @@ describe("POST /api/v1/wallet/withdraw", () => {
     expect(Number(wallet!.availableBalance)).toBe(30000);
   });
 
+  it("reuses the same withdrawal when the idempotency key is repeated", async () => {
+    const { accessToken } = await createVerifiedUser();
+    const balanceRes = await request(app).get(`${BASE_WALLET}/balance`).set(auth(accessToken));
+    const walletId = balanceRes.body.wallet_id as string;
+
+    await db.update(wallets).set({ availableBalance: 50000 }).where(eq(wallets.walletId, walletId));
+
+    const payload = {
+      amount: 20000,
+      bank_name: "GTBank",
+      bank_code: "058",
+      account_number: "0123456789",
+    };
+
+    const headers = { ...auth(accessToken), "Idempotency-Key": "withdraw-idempotency-test" };
+
+    const first = await request(app).post(`${BASE_WALLET}/withdraw`).set(headers).send(payload);
+    const second = await request(app).post(`${BASE_WALLET}/withdraw`).set(headers).send(payload);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(first.body.transaction_id).toBe(second.body.transaction_id);
+    expect(second.body.idempotent).toBe(true);
+
+    const ledgerRes = await request(app).get(`${BASE_WALLET}/ledger`).set(auth(accessToken));
+    expect(ledgerRes.status).toBe(200);
+    expect(ledgerRes.body.length).toBe(1);
+    expect(ledgerRes.body[0].type).toBe("debit");
+    expect(ledgerRes.body[0].reference_type).toBe("payout");
+
+    const [wallet] = await db.select().from(wallets).where(eq(wallets.walletId, walletId)).limit(1);
+    expect(Number(wallet!.availableBalance)).toBe(30000);
+  });
+
   it("rejects amount = 0", async () => {
     const { accessToken } = await createVerifiedUser();
     const res = await request(app).post(`${BASE_WALLET}/withdraw`).set(auth(accessToken)).send({
@@ -221,5 +255,52 @@ describe("POST /api/v1/wallet/withdraw", () => {
       amount: 1000, bank_name: "GTBank", account_number: "0123456789",
     });
     expect(res.status).toBe(400);
+  });
+
+  it("allows only one of two concurrent withdrawals to spend the same balance", async () => {
+    const { accessToken } = await createVerifiedUser();
+    const balanceRes = await request(app).get(`${BASE_WALLET}/balance`).set(auth(accessToken));
+    const walletId = balanceRes.body.wallet_id as string;
+
+    await db.update(wallets).set({ availableBalance: 50000 }).where(eq(wallets.walletId, walletId));
+
+    let resolveTransfer: ((value: unknown) => void) | undefined;
+    const transferPromise = new Promise((resolve) => {
+      resolveTransfer = resolve;
+    });
+
+    vi.spyOn(nombaUtils, "initiateTransfer").mockImplementation(async () => transferPromise as Promise<any>);
+
+    const firstRequest = request(app).post(`${BASE_WALLET}/withdraw`).set(auth(accessToken)).send({
+      amount: 40000,
+      bank_name: "GTBank",
+      bank_code: "058",
+      account_number: "0123456789",
+    });
+
+    const secondRequest = request(app).post(`${BASE_WALLET}/withdraw`).set(auth(accessToken)).send({
+      amount: 20000,
+      bank_name: "GTBank",
+      bank_code: "058",
+      account_number: "0123456789",
+    });
+
+    const firstResultPromise = firstRequest;
+    const secondResultPromise = secondRequest;
+
+    await new Promise((resolve) => setImmediate(resolve));
+
+    if (resolveTransfer) {
+      resolveTransfer({ success: true, merchantTxRef: "transfer_test_ref", status: "processing" });
+    }
+
+    const [firstResult, secondResult] = await Promise.all([firstResultPromise, secondResultPromise]);
+    const statuses = [firstResult.status, secondResult.status].sort();
+
+    expect(statuses).toEqual([200, 400]);
+    expect(firstResult.status === 200 ? firstResult.body.success : secondResult.body.success).toBe(true);
+
+    const [wallet] = await db.select().from(wallets).where(eq(wallets.walletId, walletId)).limit(1);
+    expect(Number(wallet!.availableBalance)).toBe(10000);
   });
 });

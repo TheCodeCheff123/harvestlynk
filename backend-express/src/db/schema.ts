@@ -389,6 +389,7 @@ export const payouts = pgTable(
     netAmount: integer("net_amount").notNull(),
     commissionRate: decimal("commission_rate", { precision: 5, scale: 4 }).notNull(),
     nombaReference: varchar("nomba_reference", { length: 100 }).unique(),
+    idempotencyKey: varchar("idempotency_key", { length: 120 }),
     status: payoutStatusEnum("status").default("pending").notNull(),
     failureReason: text("failure_reason"),
     processedAt: timestamp("processed_at"),
@@ -403,6 +404,7 @@ export const payouts = pgTable(
     index("payouts_farmer_id_idx").on(t.farmerId),
     index("payouts_order_id_idx").on(t.orderId),
     index("payouts_nomba_reference_idx").on(t.nombaReference),
+    uniqueIndex("payouts_idempotency_key_idx").on(t.idempotencyKey),
     index("payouts_status_idx").on(t.status),
   ]
 );
@@ -432,6 +434,41 @@ export const transactions = pgTable(
     index("transactions_user_id_idx").on(t.userId),
     index("transactions_reference_id_idx").on(t.referenceId),
     index("transactions_created_at_idx").on(t.createdAt),
+  ]
+);
+
+export const walletLedgerEntries = pgTable(
+  "wallet_ledger_entries",
+  {
+    ledgerEntryId: uuid("ledger_entry_id").defaultRandom().primaryKey(),
+    walletId: uuid("wallet_id")
+      .notNull()
+      .references(() => wallets.walletId, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: transactionTypeEnum("type").notNull(),
+    amount: bigint("amount", { mode: "number" }).notNull(),
+    balanceBefore: bigint("balance_before", { mode: "number" }).notNull(),
+    balanceAfter: bigint("balance_after", { mode: "number" }).notNull(),
+    referenceId: uuid("reference_id"),
+    referenceType: varchar("reference_type", { length: 50 }),
+    idempotencyKey: varchar("idempotency_key", { length: 120 }),
+    description: text("description"),
+    status: transactionStatusEnum("status").default("pending").notNull(),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdateFn(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    index("wallet_ledger_entries_wallet_id_idx").on(t.walletId),
+    index("wallet_ledger_entries_user_id_idx").on(t.userId),
+    index("wallet_ledger_entries_reference_id_idx").on(t.referenceId),
+    index("wallet_ledger_entries_created_at_idx").on(t.createdAt),
+    uniqueIndex("wallet_ledger_entries_idempotency_key_idx").on(t.idempotencyKey),
   ]
 );
 
