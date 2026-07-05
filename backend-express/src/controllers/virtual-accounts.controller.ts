@@ -18,10 +18,7 @@ export async function createBuyerVirtualAccount(req: AuthRequest, res: Response)
     return;
   }
 
-  if (user.role !== "buyer") {
-    res.status(403).json({ error: "Only buyers can create virtual accounts" });
-    return;
-  }
+  // Both buyers and farmers can create a virtual account to fund their wallet.
 
   const existingAccount = await db
     .select()

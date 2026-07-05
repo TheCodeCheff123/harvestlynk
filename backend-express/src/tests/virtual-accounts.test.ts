@@ -96,10 +96,12 @@ describe("POST /api/v1/virtual-accounts", () => {
     expect(res.status).toBe(401);
   });
 
-  it("403 for farmer", async () => {
+  it("creates virtual account for farmer too (both roles allowed)", async () => {
     const { token } = await insertUser("farmer");
     const res = await request(app).post(BASE).set(auth(token));
-    expect(res.status).toBe(403);
+    // Farmers can now create virtual accounts to fund their wallet
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
   });
 
   it("creates virtual account for buyer (201)", async () => {

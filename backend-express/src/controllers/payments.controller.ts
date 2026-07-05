@@ -53,12 +53,29 @@ function getNombaReference(payload: any): string | undefined {
 
 function getVirtualAccountRef(payload: any): string | undefined {
   return (
-    payload.accountRef ??
-    payload.account_ref ??
+    // Nomba production: deposit event nests accountRef under data.customerAccount
+    payload.data?.customerAccount?.accountRef ??
+    payload.data?.customer_account?.account_ref ??
+    // Nomba production: sometimes directly on data
     payload.data?.accountRef ??
     payload.data?.account_ref ??
+    // Nomba virtual account objects
     payload.data?.virtualAccount?.accountRef ??
-    payload.data?.virtual_account?.account_ref
+    payload.data?.virtual_account?.account_ref ??
+    // Top-level fallbacks
+    payload.accountRef ??
+    payload.account_ref
+  );
+}
+
+function getVirtualAccountBankNumber(payload: any): string | undefined {
+  return (
+    payload.data?.customerAccount?.accountNumber ??
+    payload.data?.customer_account?.account_number ??
+    payload.data?.accountNumber ??
+    payload.data?.account_number ??
+    payload.data?.virtualAccount?.bankAccountNumber ??
+    payload.data?.virtual_account?.bank_account_number
   );
 }
 
@@ -69,7 +86,9 @@ function getWebhookAmount(payload: any): number | undefined {
     payload.data?.transactionAmount ??
     payload.data?.transaction_amount ??
     payload.data?.totalAmount ??
-    payload.data?.total_amount;
+    payload.data?.total_amount ??
+    payload.data?.amountPaid ??
+    payload.data?.amount_paid;
 
   const amount = typeof raw === "string" ? Number(raw.replace(/,/g, "")) : Number(raw);
   return Number.isFinite(amount) && amount > 0 ? amount : undefined;
@@ -511,19 +530,33 @@ async function handlePaymentFailed(payload: any, res: Response) {
 
 
 async function handleVirtualAccountPayment(payload: any, res: Response) {
+  // Log the raw payload in production so we can inspect the exact Nomba shape if needed.
+  console.log("[va-payment] raw payload keys:", JSON.stringify(Object.keys(payload)));
+  console.log("[va-payment] data keys:", JSON.stringify(Object.keys(payload.data ?? {})));
+
   const accountRef = getVirtualAccountRef(payload);
+  const bankAccountNumber = getVirtualAccountBankNumber(payload);
   const amount = getWebhookAmount(payload);
   const paymentReference = String(
     payload.data?.reference ??
     payload.reference ??
     payload.data?.transactionReference ??
     payload.data?.transaction_reference ??
+    payload.data?.sessionId ??
+    payload.data?.session_id ??
     payload.data?.merchantTxRef ??
     "",
   ).trim();
 
-  if (!accountRef || !amount) {
-    res.status(400).json({ error: "Missing account reference or amount" });
+  console.log("[va-payment] accountRef:", accountRef, "bankAccountNumber:", bankAccountNumber, "amount:", amount, "ref:", paymentReference);
+
+  if (!amount) {
+    res.status(400).json({ error: "Missing amount in virtual account payment webhook" });
+    return;
+  }
+
+  if (!accountRef && !bankAccountNumber) {
+    res.status(400).json({ error: "Missing account reference or account number in webhook" });
     return;
   }
 
@@ -540,13 +573,29 @@ async function handleVirtualAccountPayment(payload: any, res: Response) {
     }
   }
 
-  const [virtualAccount] = await db
-    .select()
-    .from(virtualAccounts)
-    .where(eq(virtualAccounts.accountRef, accountRef))
-    .limit(1);
+  // Look up virtual account by accountRef first, fall back to bank account number.
+  let virtualAccount: typeof virtualAccounts.$inferSelect | undefined;
+
+  if (accountRef) {
+    const [row] = await db
+      .select()
+      .from(virtualAccounts)
+      .where(eq(virtualAccounts.accountRef, accountRef))
+      .limit(1);
+    virtualAccount = row;
+  }
+
+  if (!virtualAccount && bankAccountNumber) {
+    const [row] = await db
+      .select()
+      .from(virtualAccounts)
+      .where(eq(virtualAccounts.bankAccountNumber, bankAccountNumber))
+      .limit(1);
+    virtualAccount = row;
+  }
 
   if (!virtualAccount) {
+    console.error("[va-payment] virtual account not found — accountRef:", accountRef, "bankAccountNumber:", bankAccountNumber);
     res.status(404).json({ error: "Virtual account not found" });
     return;
   }
