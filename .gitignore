@@ -7,3 +7,5 @@ dist
 payment_plan.md
 test-output.log
 .codex
+recover-funds.mjs
+restore-user.mjs

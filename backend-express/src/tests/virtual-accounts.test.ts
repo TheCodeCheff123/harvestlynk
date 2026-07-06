@@ -43,7 +43,7 @@ vi.mock("../utils/supabase.js", () => ({
 
 vi.mock("../utils/nomba.js", () => ({
   createNombaCheckout: vi.fn().mockResolvedValue({ checkoutUrl: null }),
-  initiateTransfer: vi.fn().mockResolvedValue({ success: true, merchantTxRef: "mock", status: "processing" }),
+  initiateTransfer: vi.fn().mockResolvedValue({ accepted: true, pending: false, data: { status: "SUCCESS" }, code: "00" }),
   lookupAccount: vi.fn().mockResolvedValue({ accountName: "Mock", account_number: "0000000000", bank_code: "000" }),
   getNigerianBanks: vi.fn().mockResolvedValue([]),
   getBankList: vi.fn().mockResolvedValue([]),

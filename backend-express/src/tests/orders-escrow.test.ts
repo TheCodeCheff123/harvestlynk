@@ -42,7 +42,7 @@ vi.mock("../utils/supabase.js", () => ({
 
 // Also mock Nomba so cancel/refund calls don't hit real API
 vi.mock("../utils/nomba.js", () => ({
-  initiateTransfer: vi.fn().mockResolvedValue({ success: true, merchantTxRef: "mock", status: "processing" }),
+  initiateTransfer: vi.fn().mockResolvedValue({ accepted: true, pending: false, data: { status: "SUCCESS" }, code: "00" }),
   lookupAccount: vi.fn().mockResolvedValue({ accountName: "Mock", account_number: "0000000000", bank_code: "000" }),
   getNigerianBanks: vi.fn().mockResolvedValue([]),
   getBankList: vi.fn().mockResolvedValue([]),

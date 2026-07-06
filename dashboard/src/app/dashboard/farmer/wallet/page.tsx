@@ -34,6 +34,7 @@ export default function Wallet() {
   const [withdrawSuccess, setWithdrawSuccess] = useState("");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txLoading, setTxLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     refreshWallet();
@@ -50,6 +51,18 @@ export default function Wallet() {
       })
       .finally(() => setBankLoading(false));
   }, [refreshWallet]);
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      // Query Nomba for any missed VA credits before reading balance locally.
+      await walletApi.refreshBalance().catch(() => {});
+      await refreshWallet();
+      walletApi.getTransactions().then(setTransactions).catch(() => {});
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   const availableKobo = wallet ? parseInt(wallet.available_balance, 10) : 0;
   const availableNaira = availableKobo / 100;
@@ -140,7 +153,17 @@ export default function Wallet() {
             whileHover={{ scale: 1.01 }}
             className="bg-white rounded-2xl shadow-sm p-5 md:p-6 border border-gray-100"
           >
-            <p className="text-gray-400 text-xs font-semibold tracking-widest uppercase mb-2">Available for Withdrawal</p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-gray-400 text-xs font-semibold tracking-widest uppercase">Available for Withdrawal</p>
+              <button
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="flex items-center gap-1 text-xs text-[#0D631B] font-medium hover:underline disabled:opacity-50"
+              >
+                <i className={`ri-refresh-line ${refreshing ? "animate-spin" : ""}`} />
+                {refreshing ? "Refreshing..." : "Refresh"}
+              </button>
+            </div>
             <div className="flex items-center gap-3 flex-wrap">
               <p className="text-3xl md:text-4xl font-bold text-[#0D631B]">
                 {wallet ? formatNaira(wallet.available_balance) : "₦0.00"}

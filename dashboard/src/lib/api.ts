@@ -498,6 +498,14 @@ export const walletApi = {
 
   requeryPayout: (payoutId: string) =>
     apiFetch<RequeryPayoutResponse>(`/api/v1/wallet/payout/${encodeURIComponent(payoutId)}/requery`),
+
+  // Queries Nomba for missed VA credits and applies any that are not yet in the
+  // local ledger. Use this on the "Refresh" button instead of getBalance().
+  refreshBalance: () =>
+    apiFetch<{ synced: number; available_balance: string; pending_balance: string; wallet_balance: string }>(
+      "/api/v1/wallet/refresh",
+      { method: "POST" }
+    ),
 };
 
 // ─── Virtual Accounts API ─────────────────────────────────────────────────────

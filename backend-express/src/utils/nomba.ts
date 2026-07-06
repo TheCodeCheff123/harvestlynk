@@ -114,6 +114,44 @@ async function nombaRequest<T>(
   return payload.data;
 }
 
+/**
+ * Like nombaRequest but tolerates Nomba's "pending/processing" response codes
+ * for transfer-type calls where code !== "00" does NOT necessarily mean failure.
+ *
+ * Returns the full NombaResponse so the caller can inspect `code` and `data`.
+ */
+async function nombaRequestRaw<T>(
+  path: string,
+  method: "GET" | "POST" | "PUT" = "GET",
+  options: NombaRequestOptions = {},
+): Promise<NombaResponse<T>> {
+  const token = await getAccessToken();
+  const url = `${NOMBAS_BASE_URL}${path}`;
+
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${token}`,
+    accountId: getNombaParentAccountId(),
+    ...options.headers,
+  };
+
+  const response = await fetch(url, {
+    method,
+    headers,
+    body: options.body === undefined ? undefined : JSON.stringify(options.body),
+  });
+
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as NombaResponse<T>;
+    throw new NombaError(
+      `Nomba request failed (HTTP ${response.status}): ${payload.description ?? response.statusText}`,
+      payload,
+    );
+  }
+
+  return (await response.json()) as NombaResponse<T>;
+}
+
 export function getNombaConfig() {
   return {
     environment: NOMBA_ENV,
@@ -298,6 +336,19 @@ export async function lookupAccount(accountNumber: string, bankCode: string): Pr
   return nombaRequest<unknown>("/v1/transfers/bank/lookup", "POST", { body: payload });
 }
 
+/**
+ * Codes Nomba returns for a transfer that has been accepted.
+ * "00" = instant success; "01"/"02"/"09" = accepted, still in flight.
+ * "200" / "success" / "true" are observed on some Nomba production responses
+ * where the HTTP status code leaks into the body's `code` field — treat them
+ * identically to "00" (success) so we never mis-classify a successful payout.
+ */
+const NOMBA_TRANSFER_PENDING_CODES = new Set(["00", "01", "02", "09", "200", "success", "true"]);
+
+export type TransferOutcome =
+  | { accepted: true; pending: boolean; data: unknown; code: string }
+  | { accepted: false; code: string; description: string; raw: unknown };
+
 export async function initiateTransfer(options: {
   amountKobo: number;
   accountNumber: string;
@@ -307,7 +358,7 @@ export async function initiateTransfer(options: {
   senderName?: string;
   narration?: string;
   idempotencyKey?: string;
-}): Promise<unknown> {
+}): Promise<TransferOutcome> {
   const payload: Record<string, unknown> = {
     amount: formatKobo(options.amountKobo),
     accountNumber: options.accountNumber,
@@ -328,12 +379,54 @@ export async function initiateTransfer(options: {
     payload.accountId = NOMBA_SUB_ACCOUNT_ID;
   }
 
-  return nombaRequest<unknown>("/v2/transfers/bank", "POST", {
+  const response = await nombaRequestRaw<unknown>("/v2/transfers/bank", "POST", {
     body: payload,
     headers: {
       "Idempotency-Key": options.idempotencyKey ?? options.transferRef,
     },
   });
+
+  if (NOMBA_TRANSFER_PENDING_CODES.has(response.code)) {
+    // "00", "200", "success", "true" all mean instant success — not pending.
+    // "01", "02", "09" mean accepted but still in flight.
+    const IN_FLIGHT = new Set(["01", "02", "09"]);
+    return {
+      accepted: true,
+      pending: IN_FLIGHT.has(response.code),
+      data: response.data,
+      code: response.code,
+    };
+  }
+
+  return {
+    accepted: false,
+    code: response.code,
+    description: response.description ?? "Transfer rejected by Nomba",
+    raw: response,
+  };
+}
+
+/**
+ * Requery a bank transfer by the merchantTxRef / transactionRef sent to Nomba.
+ *
+ * Uses POST /v1/transactions/accounts with body { transactionRef } — this is the
+ * correct endpoint for looking up transfer status, not the checkout GET endpoint.
+ */
+export async function requeryTransfer(transactionRef: string): Promise<{
+  status: string;
+  raw: unknown;
+}> {
+  const response = await nombaRequestRaw<Record<string, unknown>>("/v1/transactions/accounts", "POST", {
+    body: { transactionRef },
+  });
+
+  // code "00" means found; extract the status from the data blob.
+  const data = (response.data ?? {}) as Record<string, unknown>;
+  const status = String(
+    data["status"] ?? data["transactionStatus"] ?? data["transaction_status"] ?? "",
+  ).toUpperCase();
+
+  return { status: status || "UNKNOWN", raw: response };
 }
 
 export async function createVirtualAccount(options: {
@@ -395,6 +488,34 @@ export async function suspendVirtualAccount(accountId: string): Promise<boolean>
 
 export async function lookupVirtualAccount(accountRef: string): Promise<unknown> {
   return nombaRequest<unknown>(`/v1/accounts/virtual/${accountRef}`, "GET");
+}
+
+/**
+ * Fetch recent inflow transactions for a virtual account holder from Nomba.
+ *
+ * Nomba API: GET /v1/transactions/accounts?accountId={id}&limit={n}
+ *
+ * Returns up to `limit` transactions (default 20) ordered newest-first.
+ * Each result item uses `entryType` ("CREDIT"/"DEBIT"), `status` ("SUCCESS"),
+ * `amount` (naira decimal string), and `id` / `sessionId` as the reference.
+ */
+export async function fetchVirtualAccountTransactions(
+  nombaAccountId: string,
+  limit = 20,
+): Promise<Array<Record<string, unknown>>> {
+  const data = await nombaRequest<{ results?: Array<Record<string, unknown>>; transactions?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>>(
+    `/v1/transactions/accounts?accountId=${encodeURIComponent(nombaAccountId)}&limit=${limit}`,
+    "GET",
+  );
+
+  // Nomba returns { results: [...] } on the transactions/accounts endpoint.
+  // Fall back to { transactions: [...] } or a raw array for other variants.
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    if (Array.isArray((data as any).results)) return (data as any).results as Array<Record<string, unknown>>;
+    if (Array.isArray((data as any).transactions)) return (data as any).transactions as Array<Record<string, unknown>>;
+  }
+  return [];
 }
 
 /**

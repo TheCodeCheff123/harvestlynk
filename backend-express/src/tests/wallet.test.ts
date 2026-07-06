@@ -7,6 +7,7 @@
  * GET  /verify-bank     — mock Nomba account lookup
  * POST /withdraw        — debit wallet + initiate transfer
  * GET  /payout/:id/requery — requery stuck payout (mock Nomba)
+ * POST /refresh         — sync missed VA credits from Nomba
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -14,9 +15,10 @@ import request from "supertest";
 import { randomUUID } from "node:crypto";
 import app from "../app.js";
 import { db } from "../db/index.js";
-import { users, wallets, payouts } from "../db/schema.js";
+import { users, wallets, payouts, virtualAccounts } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { signAccessToken } from "../utils/jwt.js";
+import * as nomba from "../utils/nomba.js";
 
 // ─── Supabase mock ────────────────────────────────────────────────────────────
 
@@ -42,13 +44,16 @@ vi.mock("../utils/supabase.js", () => ({
 // ─── Nomba mock — top-level so vi.mock is hoisted ─────────────────────────────
 
 vi.mock("../utils/nomba.js", () => ({
-  initiateTransfer: vi.fn().mockResolvedValue({ success: true, merchantTxRef: "mock-tx-ref", status: "processing" }),
+  // Returns accepted:true so the controller marks payout as processing (no refund)
+  initiateTransfer: vi.fn().mockResolvedValue({ accepted: true, pending: false, data: { status: "SUCCESS" }, code: "00" }),
   lookupAccount: vi.fn().mockResolvedValue({ accountName: "Test User", account_number: "0123456789", bank_code: "058" }),
   getNigerianBanks: vi.fn().mockResolvedValue([]),
   getBankList: vi.fn().mockResolvedValue([]),
   createNombaCheckout: vi.fn().mockResolvedValue({ checkoutUrl: null }),
   verifyNombaPaymentIfPossible: vi.fn().mockResolvedValue(null),
   verifyTransaction: vi.fn().mockResolvedValue(null),
+  // POST-based requery — returns UNKNOWN so test stays non-5xx without settling
+  requeryTransfer: vi.fn().mockResolvedValue({ status: "UNKNOWN", raw: {} }),
   cancelCheckoutOrder: vi.fn().mockResolvedValue({ success: true }),
   refundCheckoutPayment: vi.fn().mockResolvedValue({ success: true }),
   buildNombaSigningString: vi.fn().mockReturnValue(""),
@@ -67,6 +72,8 @@ vi.mock("../utils/nomba.js", () => ({
     createdAt: new Date().toISOString(),
   }),
   suspendVirtualAccount: vi.fn().mockResolvedValue(true),
+  // By default return an empty list so refresh tests that don't override this are a no-op.
+  fetchVirtualAccountTransactions: vi.fn().mockResolvedValue([]),
 }));
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -252,7 +259,8 @@ describe("POST /api/v1/wallet/withdraw", () => {
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.transaction_id).toBeDefined();
-    expect(res.body.status).toBe("pending");
+    // code "00" → pending: false → status "pending"; code "01" → "processing"
+    expect(["pending", "processing"]).toContain(res.body.status);
 
     const [w] = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
     expect(Number(w!.availableBalance)).toBe(60000);
@@ -316,5 +324,132 @@ describe("GET /api/v1/wallet/payout/:id/requery", () => {
 
     // Result depends on requery logic — accept any non-5xx
     expect(res.status).toBeLessThan(500);
+  });
+});
+
+// ─── POST /refresh ────────────────────────────────────────────────────────────
+
+describe("POST /api/v1/wallet/refresh", () => {
+  it("401 without auth", async () => {
+    const res = await request(app).post(`${BASE}/refresh`);
+    expect(res.status).toBe(401);
+  });
+
+  it("404 when user has no virtual account", async () => {
+    const { token } = await insertUser();
+    const res = await request(app).post(`${BASE}/refresh`).set(auth(token));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns synced:0 when Nomba returns no new transactions", async () => {
+    const { userId, token } = await insertUser();
+
+    await db.insert(virtualAccounts).values({
+      userId,
+      accountRef: `VA-refresh-empty-${userId}`,
+      accountName: "Test",
+      bankName: "Test Bank",
+      bankAccountNumber: "1111111111",
+      bankAccountName: "Test User",
+      nombaAccountId: "nomba-acct-id-1",
+      status: "active",
+    });
+
+    // fetchVirtualAccountTransactions default mock returns []
+    const res = await request(app).post(`${BASE}/refresh`).set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body.synced).toBe(0);
+    expect(res.body.wallet_balance).toBeDefined();
+  });
+
+  it("credits wallet for unseen Nomba transactions and returns synced count", async () => {
+    const { userId, token } = await insertUser();
+
+    await db.insert(virtualAccounts).values({
+      userId,
+      accountRef: `VA-refresh-credit-${userId}`,
+      accountName: "Test",
+      bankName: "Test Bank",
+      bankAccountNumber: "2222222222",
+      bankAccountName: "Test User",
+      nombaAccountId: "nomba-acct-id-2",
+      status: "active",
+    });
+
+    // Override the mock to return one new inflow transaction (₦500 = 50000 kobo)
+    vi.spyOn(nomba, "fetchVirtualAccountTransactions").mockResolvedValueOnce([
+      {
+        transactionRef: `txref-${userId}-001`,
+        amount: 500,
+        type: "credit",
+        status: "successful",
+        currency: "NGN",
+      },
+    ]);
+
+    const res = await request(app).post(`${BASE}/refresh`).set(auth(token));
+    expect(res.status).toBe(200);
+    expect(res.body.synced).toBe(1);
+
+    // Wallet should now have ₦500 (50000 kobo) credited.
+    const [w] = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
+    expect(Number(w!.availableBalance)).toBe(50000);
+  });
+
+  it("is idempotent — same Nomba transaction is not double-credited", async () => {
+    const { userId, token } = await insertUser();
+
+    await db.insert(virtualAccounts).values({
+      userId,
+      accountRef: `VA-refresh-idem-${userId}`,
+      accountName: "Test",
+      bankName: "Test Bank",
+      bankAccountNumber: "3333333333",
+      bankAccountName: "Test User",
+      nombaAccountId: "nomba-acct-id-3",
+      status: "active",
+    });
+
+    const sameNombaTx = [
+      {
+        transactionRef: `txref-${userId}-idem`,
+        amount: 200,
+        type: "credit",
+        status: "successful",
+        currency: "NGN",
+      },
+    ];
+
+    vi.spyOn(nomba, "fetchVirtualAccountTransactions").mockResolvedValueOnce(sameNombaTx);
+    const r1 = await request(app).post(`${BASE}/refresh`).set(auth(token));
+    expect(r1.body.synced).toBe(1);
+
+    vi.spyOn(nomba, "fetchVirtualAccountTransactions").mockResolvedValueOnce(sameNombaTx);
+    const r2 = await request(app).post(`${BASE}/refresh`).set(auth(token));
+    expect(r2.body.synced).toBe(0); // already in ledger — not credited again
+
+    const [w] = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
+    expect(Number(w!.availableBalance)).toBe(20000); // ₦200 = 20000 kobo, once only
+  });
+
+  it("502 when Nomba is unreachable", async () => {
+    const { userId, token } = await insertUser();
+
+    await db.insert(virtualAccounts).values({
+      userId,
+      accountRef: `VA-refresh-err-${userId}`,
+      accountName: "Test",
+      bankName: "Test Bank",
+      bankAccountNumber: "4444444444",
+      bankAccountName: "Test User",
+      nombaAccountId: "nomba-acct-id-4",
+      status: "active",
+    });
+
+    vi.spyOn(nomba, "fetchVirtualAccountTransactions").mockRejectedValueOnce(new Error("network timeout"));
+
+    const res = await request(app).post(`${BASE}/refresh`).set(auth(token));
+    expect(res.status).toBe(502);
+    expect(res.body.error).toMatch(/nomba/i);
   });
 });

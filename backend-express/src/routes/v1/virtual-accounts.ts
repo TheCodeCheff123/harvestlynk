@@ -1,5 +1,5 @@
 import express, { type IRouter } from "express";
-import { authenticate, requireRole } from "../../middleware/auth.js";
+import { authenticate } from "../../middleware/auth.js";
 import {
   createBuyerVirtualAccount,
   getMyVirtualAccount,
@@ -12,8 +12,8 @@ const router: IRouter = express.Router();
 // All virtual account routes require authentication
 router.use(authenticate);
 
-// Create virtual account (buyers only)
-router.post("/", requireRole("buyer"), createBuyerVirtualAccount);
+// Both buyers and farmers can create a virtual account to fund their wallet.
+router.post("/", createBuyerVirtualAccount);
 
 // Get my virtual account
 router.get("/", getMyVirtualAccount);

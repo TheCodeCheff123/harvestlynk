@@ -78,6 +78,12 @@ export default function BuyerWallet() {
   async function handleRefreshBalance() {
     setRefreshingBalance(true);
     try {
+      // Call the backend refresh endpoint first — it queries Nomba for any
+      // missed VA credits and credits them before we read the balance back.
+      await walletApi.refreshBalance().catch(() => {
+        // If the user has no VA yet, the endpoint returns 404 — that's fine,
+        // just fall through to the regular balance read.
+      });
       await refreshWallet();
       loadTransactions();
       showToast("Balance refreshed");

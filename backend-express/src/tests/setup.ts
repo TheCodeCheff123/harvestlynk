@@ -9,9 +9,24 @@
  *
  *   insertTestUser() seeds a user + wallet directly into the DB and returns a
  *   signed local JWT — no signup/verify-email HTTP flow required.
+ *
+ * SAFETY: This file hard-fails when NODE_ENV !== "test" so it can never
+ * run cleanAll() against a production database by accident.
+ * vitest.config.ts sets envFile: ".env.test" and env: { NODE_ENV: "test" }
+ * so the correct database URL is loaded before any test code runs.
  */
 
-import "dotenv/config";
+// Hard-fail immediately if someone accidentally runs tests against production.
+if (process.env["NODE_ENV"] !== "test") {
+  throw new Error(
+    `[setup.ts] NODE_ENV is "${process.env["NODE_ENV"]}" — refusing to run test teardown outside of a test environment. ` +
+    `Set NODE_ENV=test and point DATABASE_URL at a dedicated test database.`,
+  );
+}
+
+// Do NOT import "dotenv/config" here. vitest.config.ts already loads .env.test
+// via the `envFile` option before this file runs. Importing dotenv here would
+// override those values with whatever is in .env (production credentials).
 import { db } from "../db/index.js";
 import {
   users,

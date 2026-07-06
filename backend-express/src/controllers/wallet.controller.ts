@@ -3,8 +3,8 @@ import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { db } from "../db/index.js";
-import { getNigerianBanks, lookupAccount, initiateTransfer, verifyTransaction } from "../utils/nomba.js";
-import { payouts, wallets, transactions, walletLedgerEntries } from "../db/schema.js";
+import { getNigerianBanks, lookupAccount, initiateTransfer, requeryTransfer, fetchVirtualAccountTransactions, type TransferOutcome } from "../utils/nomba.js";
+import { payouts, wallets, transactions, walletLedgerEntries, virtualAccounts } from "../db/schema.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 type WithdrawIdempotencyKey = string | null;
@@ -336,8 +336,9 @@ export async function withdraw(req: AuthRequest, res: Response) {
     return;
   }
 
+  let outcome: TransferOutcome;
   try {
-    const transferResult = await initiateTransfer({
+    outcome = await initiateTransfer({
       amountKobo: amount,
       accountNumber: account_number,
       accountName,
@@ -347,75 +348,124 @@ export async function withdraw(req: AuthRequest, res: Response) {
       narration: `Withdrawal ${walletSnapshot.transferRef}`,
       idempotencyKey: idempotencyKey ?? walletSnapshot.transferRef,
     });
-
-    await db.update(payouts)
-      .set({ status: "processing", processedAt: new Date(), updatedAt: new Date() })
-      .where(eq(payouts.payoutId, walletSnapshot.payoutId));
-
-    await db.update(walletLedgerEntries)
-      .set({ status: "completed", updatedAt: new Date() })
-      .where(eq(walletLedgerEntries.referenceId, walletSnapshot.payoutId));
-
-    res.json({
-      success: true,
-      message: "Withdrawal initiated",
-      transaction_id: walletSnapshot.transactionId,
-      payout_id: walletSnapshot.payoutId,
-      status: "pending",
-      idempotency_key: idempotencyKey,
-      transfer: transferResult,
-    });
   } catch (error) {
-    await db.transaction(async (tx) => {
-      const [restoredWallet] = await tx.update(wallets)
-        .set({
-          availableBalance: sql`${wallets.availableBalance} + ${amount}`,
-          updatedAt: new Date(),
-        })
-        .where(eq(wallets.walletId, walletSnapshot.walletId))
-        .returning({ availableBalance: wallets.availableBalance });
-
-      await tx.update(transactions)
-        .set({ status: "failed" })
-        .where(eq(transactions.transactionId, walletSnapshot.transactionId));
-
-      await tx.update(walletLedgerEntries)
-        .set({ status: "failed", updatedAt: new Date() })
-        .where(eq(walletLedgerEntries.referenceId, walletSnapshot.payoutId));
-
-      await tx.update(payouts)
-        .set({
-          status: "failed",
-          failureReason: error instanceof Error ? error.message : String(error),
-          settledAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(payouts.payoutId, walletSnapshot.payoutId));
-
-      await tx.insert(walletLedgerEntries).values({
-        walletId: walletSnapshot.walletId,
-        userId: req.user!.userId,
-        type: "credit",
-        amount,
-        balanceBefore: Number(restoredWallet!.availableBalance) - amount,
-        balanceAfter: Number(restoredWallet!.availableBalance),
-        referenceId: walletSnapshot.payoutId,
-        referenceType: "payout_refund",
-        idempotencyKey,
-        description: `Refund failed withdrawal ${walletSnapshot.payoutId}`,
-        status: "completed",
-        metadata: {
-          transfer_ref: walletSnapshot.transferRef,
-        },
-      });
+    // Network error or HTTP-level failure (Nomba unreachable / 5xx).
+    // The transfer definitely never reached Nomba — safe to refund immediately.
+    console.error("[withdraw] Nomba transfer call threw:", error);
+    await _refundFailedPayout({
+      walletId: walletSnapshot.walletId,
+      payoutId: walletSnapshot.payoutId,
+      transactionId: walletSnapshot.transactionId,
+      userId: req.user!.userId,
+      amount,
+      idempotencyKey,
+      transferRef: walletSnapshot.transferRef,
+      reason: error instanceof Error ? error.message : String(error),
     });
-
     res.status(502).json({
       success: false,
-      error: "Unable to initiate payout transfer",
-      details: error instanceof Error ? error.message : error,
+      error: "Unable to reach payout provider",
+      details: error instanceof Error ? error.message : String(error),
     });
+    return;
   }
+
+  if (!outcome.accepted) {
+    // Nomba explicitly rejected the transfer (e.g. invalid account, insufficient funds on provider).
+    console.warn("[withdraw] Nomba rejected transfer:", outcome.code, outcome.description);
+    await _refundFailedPayout({
+      walletId: walletSnapshot.walletId,
+      payoutId: walletSnapshot.payoutId,
+      transactionId: walletSnapshot.transactionId,
+      userId: req.user!.userId,
+      amount,
+      idempotencyKey,
+      transferRef: walletSnapshot.transferRef,
+      reason: `Nomba rejection code ${outcome.code}: ${outcome.description}`,
+    });
+    res.status(422).json({
+      success: false,
+      error: "Transfer rejected by payout provider",
+      nomba_code: outcome.code,
+      details: outcome.description,
+    });
+    return;
+  }
+
+  // Transfer accepted (code "00" = instant success, other accepted codes = still processing).
+  // Do NOT refund. Mark payout as processing and wait for the webhook to settle it.
+  await db.update(payouts)
+    .set({ status: "processing", processedAt: new Date(), updatedAt: new Date() })
+    .where(eq(payouts.payoutId, walletSnapshot.payoutId));
+
+  await db.update(walletLedgerEntries)
+    .set({ status: "completed", updatedAt: new Date() })
+    .where(eq(walletLedgerEntries.referenceId, walletSnapshot.payoutId));
+
+  res.json({
+    success: true,
+    message: outcome.pending ? "Withdrawal submitted — awaiting bank confirmation" : "Withdrawal initiated",
+    transaction_id: walletSnapshot.transactionId,
+    payout_id: walletSnapshot.payoutId,
+    status: outcome.pending ? "processing" : "pending",
+    idempotency_key: idempotencyKey,
+    nomba_code: outcome.code,
+  });
+}
+
+// ─── Internal helper: roll back a payout that never reached Nomba ────────────
+
+async function _refundFailedPayout(opts: {
+  walletId: string;
+  payoutId: string;
+  transactionId: string;
+  userId: string;
+  amount: number;
+  idempotencyKey: string | null;
+  transferRef: string;
+  reason: string;
+}) {
+  await db.transaction(async (tx) => {
+    const [restoredWallet] = await tx.update(wallets)
+      .set({
+        availableBalance: sql`${wallets.availableBalance} + ${opts.amount}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(wallets.walletId, opts.walletId))
+      .returning({ availableBalance: wallets.availableBalance });
+
+    await tx.update(transactions)
+      .set({ status: "failed" })
+      .where(eq(transactions.transactionId, opts.transactionId));
+
+    await tx.update(walletLedgerEntries)
+      .set({ status: "failed", updatedAt: new Date() })
+      .where(eq(walletLedgerEntries.referenceId, opts.payoutId));
+
+    await tx.update(payouts)
+      .set({
+        status: "failed",
+        failureReason: opts.reason,
+        settledAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(payouts.payoutId, opts.payoutId));
+
+    await tx.insert(walletLedgerEntries).values({
+      walletId: opts.walletId,
+      userId: opts.userId,
+      type: "credit",
+      amount: opts.amount,
+      balanceBefore: Number(restoredWallet!.availableBalance) - opts.amount,
+      balanceAfter: Number(restoredWallet!.availableBalance),
+      referenceId: opts.payoutId,
+      referenceType: "payout_refund",
+      idempotencyKey: opts.idempotencyKey,
+      description: `Refund failed withdrawal ${opts.payoutId}`,
+      status: "completed",
+      metadata: { transfer_ref: opts.transferRef },
+    });
+  });
 }
 
 // ─── Payout Requery ──────────────────────────────────────────────────────────
@@ -453,13 +503,10 @@ export async function requeryPayout(req: AuthRequest, res: Response) {
 
   let nombaStatus: string | undefined;
   try {
-    const result = await verifyTransaction(transferRef);
-    const data = (result as any)?.data ?? result;
-    nombaStatus = String(
-      data?.status ?? data?.transactionStatus ?? data?.transaction_status ?? "",
-    ).toUpperCase() || undefined;
+    const result = await requeryTransfer(transferRef);
+    nombaStatus = result.status || undefined;
   } catch (error) {
-    console.error("[payout-requery] Nomba verify error:", error);
+    console.error("[payout-requery] Nomba requery error:", error);
     res.status(502).json({ error: "Unable to reach Nomba for requery", details: error instanceof Error ? error.message : String(error) });
     return;
   }
@@ -553,4 +600,167 @@ export async function requeryPayout(req: AuthRequest, res: Response) {
   });
 
   res.json({ payout_id: payout.payoutId, status: "failed", nomba_status: nombaStatus, settled: true });
+}
+
+/**
+ * POST /wallet/refresh
+ *
+ * Queries Nomba for recent transactions on the user's virtual account and
+ * credits any that are not yet reflected in the local wallet ledger (i.e.
+ * whose idempotency key is missing). This is the "manual refresh" safety net
+ * for cases where a webhook was missed or delayed.
+ */
+export async function refreshWalletBalance(req: AuthRequest, res: Response) {
+  const userId = req.user!.userId;
+
+  // Look up the user's virtual account — without one there is nothing to sync.
+  const [virtualAccount] = await db
+    .select()
+    .from(virtualAccounts)
+    .where(eq(virtualAccounts.userId, userId))
+    .limit(1);
+
+  if (!virtualAccount) {
+    res.status(404).json({ error: "No virtual account found. Fund your wallet by creating one first." });
+    return;
+  }
+
+  if (!virtualAccount.nombaAccountId) {
+    res.status(400).json({ error: "Virtual account has no Nomba account ID; cannot query Nomba." });
+    return;
+  }
+
+  // Fetch recent transactions from Nomba.
+  let nombaTransactions: Array<Record<string, unknown>>;
+  try {
+    nombaTransactions = await fetchVirtualAccountTransactions(virtualAccount.nombaAccountId);
+  } catch (error) {
+    console.error("[wallet-refresh] Nomba fetch failed:", error);
+    res.status(502).json({ error: "Unable to reach Nomba", details: error instanceof Error ? error.message : String(error) });
+    return;
+  }
+
+  // Filter to successful CREDIT transactions directed at this specific VA only.
+  // Nomba's /v1/transactions/accounts response uses:
+  //   entryType:               "CREDIT" | "DEBIT"
+  //   status:                  "SUCCESS" | "PAYMENT_FAILED" | ...
+  //   virtualAccountReference: the accountRef of the VA that received funds
+  //
+  // IMPORTANT: this endpoint returns transactions for the whole parent account,
+  // not just this VA. We MUST match virtualAccountReference exactly so we never
+  // credit funds that belong to a different virtual account or a different app.
+  const VA_REF = virtualAccount.accountRef;
+  const inflowTxs = nombaTransactions.filter((tx) => {
+    const entryType = String(tx["entryType"] ?? tx["type"] ?? tx["transactionType"] ?? "").toUpperCase();
+    const status    = String(tx["status"] ?? tx["transactionStatus"] ?? "").toUpperCase();
+    const vaRef     = String(tx["virtualAccountReference"] ?? "");
+
+    return (
+      entryType === "CREDIT" &&
+      (status === "SUCCESS" || status === "SUCCESSFUL" || status === "COMPLETED" || status === "00") &&
+      vaRef === VA_REF   // must belong to this exact virtual account
+    );
+  });
+
+  if (inflowTxs.length === 0) {
+    // Nothing to sync — just return current balance.
+    const [wallet] = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
+    res.json({ synced: 0, wallet_balance: wallet ? String(wallet.availableBalance) : "0" });
+    return;
+  }
+
+  // Load the user's wallet.
+  const [wallet] = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
+  if (!wallet) {
+    res.status(404).json({ error: "Wallet not found" });
+    return;
+  }
+
+  let synced = 0;
+
+  for (const tx of inflowTxs) {
+    // Derive the canonical reference for this transaction — used as the
+    // idempotency key so we never double-credit the same transfer.
+    // Nomba's /v1/transactions/accounts fields (in priority order):
+    //   sessionId              — NIP session ID, unique per bank transfer
+    //   billingVendorReference — Nomba's internal unique reference
+    //   id                     — Nomba transaction document ID (always present)
+    const txRef = String(
+      tx["sessionId"] ??
+      tx["billingVendorReference"] ??
+      tx["id"] ??
+      tx["transactionRef"] ??
+      tx["reference"] ??
+      "",
+    ).trim();
+
+    if (!txRef) continue; // No reference means we cannot guarantee idempotency — skip.
+
+    // Check whether this transaction is already in the ledger.
+    const [existing] = await db
+      .select({ ledgerEntryId: walletLedgerEntries.ledgerEntryId })
+      .from(walletLedgerEntries)
+      .where(eq(walletLedgerEntries.idempotencyKey, txRef))
+      .limit(1);
+
+    if (existing) continue; // Already credited.
+
+    // Nomba's /v1/transactions/accounts returns amount as a naira decimal
+    // string e.g. "100.0" or "1500.50". Always multiply by 100 to get kobo.
+    const rawAmount = Number(tx["amount"] ?? tx["transactionAmount"] ?? 0);
+    if (!rawAmount || rawAmount <= 0) continue;
+    const amountKobo = Math.round(rawAmount * 100);
+
+    // Re-read wallet inside the loop so each credit sees the latest balance.
+    const [freshWallet] = await db.select().from(wallets).where(eq(wallets.walletId, wallet.walletId)).limit(1);
+    if (!freshWallet) break;
+
+    const newAvailableBalance = freshWallet.availableBalance + amountKobo;
+    const newTotalPaidIn = freshWallet.totalPaidIn + amountKobo;
+
+    await db.transaction(async (dbTx) => {
+      await dbTx.update(wallets)
+        .set({ availableBalance: newAvailableBalance, totalPaidIn: newTotalPaidIn, lastUpdated: new Date(), updatedAt: new Date() })
+        .where(eq(wallets.walletId, freshWallet.walletId));
+
+      await dbTx.insert(walletLedgerEntries).values({
+        walletId: freshWallet.walletId,
+        userId,
+        type: "credit",
+        amount: amountKobo,
+        balanceBefore: freshWallet.availableBalance,
+        balanceAfter: newAvailableBalance,
+        referenceId: virtualAccount.virtualAccountId,
+        referenceType: "virtual_account",
+        idempotencyKey: txRef,
+        description: `Wallet funding via virtual account ${virtualAccount.bankAccountNumber} (refresh)`,
+        status: "completed",
+        metadata: tx,
+      });
+
+      await dbTx.insert(transactions).values({
+        walletId: freshWallet.walletId,
+        userId,
+        type: "credit",
+        amount: amountKobo,
+        balanceBefore: freshWallet.availableBalance,
+        balanceAfter: newAvailableBalance,
+        referenceId: virtualAccount.virtualAccountId,
+        referenceType: "virtual_account",
+        description: `Wallet funding via virtual account ${virtualAccount.bankAccountNumber} (refresh)`,
+        status: "completed",
+      });
+    });
+
+    synced += 1;
+  }
+
+  const [updatedWallet] = await db.select().from(wallets).where(eq(wallets.userId, userId)).limit(1);
+
+  res.json({
+    synced,
+    wallet_balance: String(updatedWallet?.availableBalance ?? wallet.availableBalance),
+    available_balance: String(updatedWallet?.availableBalance ?? wallet.availableBalance),
+    pending_balance: String(updatedWallet?.pendingBalance ?? wallet.pendingBalance),
+  });
 }
