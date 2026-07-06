@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, fadeUp, scaleIn } from "@/lib/motion";
 import { useAuth } from "@/context/AuthContext";
-import { walletApi, formatNaira, nairaToKobo, type Transaction, virtualAccountsApi, type VirtualAccount } from "@/lib/api";
+import { walletApi, formatNaira, nairaToKobo, type Transaction } from "@/lib/api";
 
 const DEFAULT_BANKS = [
   { code: "058", name: "Guaranty Trust Bank (GTB)" },
@@ -18,16 +19,17 @@ const DEFAULT_BANKS = [
 
 export default function BuyerWallet() {
   const { wallet, refreshWallet } = useAuth();
+  const searchParams = useSearchParams();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txLoading, setTxLoading] = useState(true);
-  const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
-  const [vaLoading, setVaLoading] = useState(true);
-  const [showVaModal, setShowVaModal] = useState(false);
-  const [creatingVa, setCreatingVa] = useState(false);
-  const [suspending, setSuspending] = useState(false);
   const [refreshingBalance, setRefreshingBalance] = useState(false);
-  // toast: { msg, ok }
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+
+  // Top-up state
+  const [showTopup, setShowTopup] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("");
+  const [topupLoading, setTopupLoading] = useState(false);
+  const [topupError, setTopupError] = useState("");
 
   // Withdrawal state
   const [showWithdraw, setShowWithdraw] = useState(false);
@@ -48,42 +50,36 @@ export default function BuyerWallet() {
   }
 
   const loadTransactions = useCallback(() => {
+    setTxLoading(true);
     walletApi.getTransactions()
       .then(setTransactions)
       .catch(() => {})
       .finally(() => setTxLoading(false));
   }, []);
 
-  const loadVirtualAccount = useCallback(async () => {
-    setVaLoading(true);
-    try {
-      const response = await virtualAccountsApi.getMyVirtualAccount();
-      setVirtualAccount(response.virtualAccount);
-    } catch {
-      setVirtualAccount(null);
-    } finally {
-      setVaLoading(false);
-    }
-  }, []);
-
-  // Initial load — run once on mount
+  // Initial load
   useEffect(() => {
     refreshWallet();
     loadTransactions();
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    loadVirtualAccount();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-refresh when Nomba redirects back with ?topup=success
+  useEffect(() => {
+    if (searchParams.get("topup") === "success") {
+      setRefreshingBalance(true);
+      refreshWallet()
+        .then(() => loadTransactions())
+        .then(() => showToast("Wallet credited successfully!"))
+        .finally(() => setRefreshingBalance(false));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleRefreshBalance() {
     setRefreshingBalance(true);
     try {
-      // Call the backend refresh endpoint first — it queries Nomba for any
-      // missed VA credits and credits them before we read the balance back.
-      await walletApi.refreshBalance().catch(() => {
-        // If the user has no VA yet, the endpoint returns 404 — that's fine,
-        // just fall through to the regular balance read.
-      });
+      await walletApi.refreshBalance().catch(() => {});
       await refreshWallet();
       loadTransactions();
       showToast("Balance refreshed");
@@ -92,31 +88,22 @@ export default function BuyerWallet() {
     }
   }
 
-  async function handleCreateVirtualAccount() {
-    setCreatingVa(true);
+  async function handleTopup() {
+    const naira = parseFloat(topupAmount);
+    if (!naira || naira < 100) { setTopupError("Minimum top-up is ₦100."); return; }
+    setTopupLoading(true);
+    setTopupError("");
     try {
-      const response = await virtualAccountsApi.createVirtualAccount();
-      setVirtualAccount(response.virtualAccount);
-      setShowVaModal(false);
-      showToast("Virtual account created successfully");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Failed to create virtual account", false);
+      const { checkout_url } = await walletApi.createTopup(nairaToKobo(naira));
+      // Open Nomba checkout in a new tab — Nomba will redirect back to callbackUrl on completion
+      window.open(checkout_url, "_blank", "noopener,noreferrer");
+      setShowTopup(false);
+      setTopupAmount("");
+      showToast("Payment page opened — complete your payment in the new tab");
+    } catch (e) {
+      setTopupError(e instanceof Error ? e.message : "Failed to initiate payment");
     } finally {
-      setCreatingVa(false);
-    }
-  }
-
-  async function handleSuspend() {
-    if (!virtualAccount) return;
-    setSuspending(true);
-    try {
-      await virtualAccountsApi.suspendVirtualAccount();
-      setVirtualAccount((prev) => prev ? { ...prev, status: "suspended" } : prev);
-      showToast("Virtual account suspended");
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "Failed to suspend account", false);
-    } finally {
-      setSuspending(false);
+      setTopupLoading(false);
     }
   }
 
@@ -244,10 +231,10 @@ export default function BuyerWallet() {
           <motion.button
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
-            onClick={() => setShowVaModal(true)}
+            onClick={() => { setShowTopup(true); setTopupAmount(""); setTopupError(""); }}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#e8a000] text-white font-medium text-sm hover:bg-[#d09000] transition-colors"
           >
-            <i className="ri-bank-card-line" /> Credit Wallet
+            <i className="ri-bank-card-line" /> Add Money
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.04 }}
@@ -404,169 +391,65 @@ export default function BuyerWallet() {
         )}
       </AnimatePresence>
 
-      {/* Virtual Account Section */}
-      <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-        <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-bold text-gray-900">Virtual Account</h2>
-          {virtualAccount && (
-            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold capitalize ${
-              virtualAccount.status === "active"    ? "bg-green-100 text-[#0D631B]" :
-              virtualAccount.status === "suspended" ? "bg-amber-50 text-amber-600" :
-                                                      "bg-red-50 text-red-500"
-            }`}>
-              <i className={
-                virtualAccount.status === "active"    ? "ri-checkbox-circle-line" :
-                virtualAccount.status === "suspended" ? "ri-pause-circle-line" :
-                                                        "ri-close-circle-line"
-              } />
-              {virtualAccount.status}
-            </span>
-          )}
-        </div>
-
-        {vaLoading ? (
-          <div className="flex justify-center py-12">
-            <i className="ri-loader-4-line animate-spin text-[#0D631B] text-2xl" />
-          </div>
-        ) : !virtualAccount ? (
-          <div className="flex flex-col items-center py-12 text-gray-400">
-            <i className="ri-bank-line text-3xl mb-2" />
-            <p className="text-sm mb-1">No virtual account created yet.</p>
-            <p className="text-xs text-gray-400 mb-4">Create one to fund your wallet via bank transfer.</p>
-            <motion.button
-              whileHover={{ scale: 1.04 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setShowVaModal(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#0D631B] text-white font-medium text-sm hover:bg-green-700 transition-colors"
-            >
-              <i className="ri-add-line" /> Create Virtual Account
-            </motion.button>
-          </div>
-        ) : (
-          <div className="p-4 md:p-6 space-y-4">
-            {/* Account details card */}
-            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Bank Name</span>
-                <span className="text-sm font-bold text-gray-900">{virtualAccount.bank_name}</span>
-              </div>
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Account Number</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-lg font-bold text-gray-900 tracking-wider">
-                    {virtualAccount.bank_account_number}
-                  </span>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => copyToClipboard(virtualAccount.bank_account_number, "Account number")}
-                    className="text-gray-400 hover:text-[#0D631B] transition-colors"
-                    title="Copy account number"
-                  >
-                    <i className="ri-file-copy-line" />
-                  </motion.button>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Account Name</span>
-                <span className="text-sm font-medium text-gray-900">{virtualAccount.bank_account_name}</span>
-              </div>
-            </div>
-
-            {virtualAccount.status === "suspended" && (
-              <div className="bg-amber-50 rounded-xl px-4 py-3 flex items-start gap-2 text-xs text-amber-700 border border-amber-100">
-                <i className="ri-pause-circle-line mt-0.5 flex-shrink-0" />
-                <span>This virtual account is suspended. Transfers to this account will not be credited. Contact support to reactivate.</span>
-              </div>
-            )}
-
-            {virtualAccount.status === "active" && (
-              <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
-                <div className="flex items-start gap-3">
-                  <i className="ri-information-line text-blue-600 text-xl mt-0.5" />
-                  <div className="flex-1">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-1">How to fund your wallet</h3>
-                    <p className="text-xs text-gray-600 leading-relaxed">
-                      Transfer any amount to the account number above from any Nigerian bank. Funds are credited automatically within minutes.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <motion.button
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => copyToClipboard(virtualAccount.bank_account_number, "Account number")}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors"
-              >
-                <i className="ri-file-copy-line" /> Copy Account Number
-              </motion.button>
-              {virtualAccount.status === "active" && (
-                <motion.button
-                  whileHover={{ scale: 1.04 }}
-                  whileTap={{ scale: 0.97 }}
-                  onClick={handleSuspend}
-                  disabled={suspending}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 text-red-600 font-medium text-sm hover:bg-red-50 transition-colors disabled:opacity-60"
-                >
-                  {suspending
-                    ? <><i className="ri-loader-4-line animate-spin" /> Suspending...</>
-                    : <><i className="ri-pause-circle-line" /> Suspend Account</>
-                  }
-                </motion.button>
-              )}
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Virtual Account Creation Modal */}
+      {/* Top-up Modal */}
       <AnimatePresence>
-        {showVaModal && (
+        {showTopup && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => !creatingVa && setShowVaModal(false)}
+            onClick={() => !topupLoading && setShowTopup(false)}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl p-6 max-w-md w-full"
+              className="bg-white rounded-2xl p-6 max-w-sm w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-bold text-gray-900 mb-2">Create Virtual Account</h3>
-              <p className="text-sm text-gray-600 mb-6">
-                A dedicated bank account number will be generated for you. Transfer any amount to it and your wallet will be credited automatically.
-              </p>
-              <div className="bg-blue-50 rounded-xl px-4 py-3 flex items-start gap-2 text-xs text-blue-700 mb-6">
+              <h3 className="text-xl font-bold text-gray-900 mb-1">Add Money to Wallet</h3>
+              <p className="text-sm text-gray-500 mb-5">Pay by card or instant bank transfer — powered by Nomba.</p>
+
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Amount (₦)</label>
+              <input
+                type="number"
+                min="100"
+                placeholder="Enter amount e.g. 500"
+                value={topupAmount}
+                onChange={(e) => setTopupAmount(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#0D631B] bg-gray-50 focus:bg-white transition-colors mb-1"
+                autoFocus
+              />
+              <p className="text-xs text-gray-400 mb-4">Minimum ₦100</p>
+
+              {topupError && (
+                <p className="text-red-500 text-xs mb-3 px-3 py-2 bg-red-50 rounded-xl">{topupError}</p>
+              )}
+
+              <div className="bg-blue-50 rounded-xl px-4 py-3 flex items-start gap-2 text-xs text-blue-700 mb-5">
                 <i className="ri-information-line mt-0.5 flex-shrink-0" />
-                <span>Each user gets one permanent virtual account. This cannot be undone.</span>
+                <span>A secure Nomba payment page will open in a new tab. You can pay by card or bank transfer. Your wallet is credited automatically on payment.</span>
               </div>
+
               <div className="flex gap-3">
                 <motion.button
-                  whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={() => setShowVaModal(false)}
-                  disabled={creatingVa}
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 font-medium text-sm hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  onClick={() => setShowTopup(false)}
+                  disabled={topupLoading}
+                  className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </motion.button>
                 <motion.button
-                  whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
-                  onClick={handleCreateVirtualAccount}
-                  disabled={creatingVa}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-[#0D631B] text-white font-medium text-sm hover:bg-green-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  onClick={handleTopup}
+                  disabled={topupLoading || !topupAmount}
+                  className="flex-1 py-3 rounded-xl bg-[#e8a000] text-white text-sm font-semibold hover:bg-[#d09000] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {creatingVa
-                    ? <><i className="ri-loader-4-line animate-spin" /> Creating...</>
-                    : "Create Account"
+                  {topupLoading
+                    ? <><i className="ri-loader-4-line animate-spin" /> Opening…</>
+                    : <><i className="ri-external-link-line" /> Pay Now</>
                   }
                 </motion.button>
               </div>

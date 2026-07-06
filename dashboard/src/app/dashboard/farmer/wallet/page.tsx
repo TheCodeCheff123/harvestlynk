@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useSearchParams } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, fadeUp, scaleIn } from "@/lib/motion";
 import { useAuth } from "@/context/AuthContext";
 import { walletApi, formatNaira, nairaToKobo, Transaction } from "@/lib/api";
@@ -20,6 +21,7 @@ const DEFAULT_BANKS = [
 
 export default function Wallet() {
   const { wallet, refreshWallet } = useAuth();
+  const searchParams = useSearchParams();
   const [amount, setAmount] = useState("");
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
@@ -35,6 +37,18 @@ export default function Wallet() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [txLoading, setTxLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Top-up state
+  const [showTopup, setShowTopup] = useState(false);
+  const [topupAmount, setTopupAmount] = useState("");
+  const [topupLoading, setTopupLoading] = useState(false);
+  const [topupError, setTopupError] = useState("");
+  const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
+
+  function showToast(msg: string, ok = true) {
+    setToast({ msg, ok });
+    setTimeout(() => setToast(null), 3000);
+  }
 
   useEffect(() => {
     refreshWallet();
@@ -52,15 +66,44 @@ export default function Wallet() {
       .finally(() => setBankLoading(false));
   }, [refreshWallet]);
 
+  // Auto-refresh when Nomba redirects back with ?topup=success
+  useEffect(() => {
+    if (searchParams.get("topup") === "success") {
+      setRefreshing(true);
+      refreshWallet()
+        .then(() => walletApi.getTransactions().then(setTransactions).catch(() => {}))
+        .then(() => showToast("Wallet credited successfully!"))
+        .finally(() => setRefreshing(false));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handleRefresh() {
     setRefreshing(true);
     try {
-      // Query Nomba for any missed VA credits before reading balance locally.
       await walletApi.refreshBalance().catch(() => {});
       await refreshWallet();
       walletApi.getTransactions().then(setTransactions).catch(() => {});
     } finally {
       setRefreshing(false);
+    }
+  }
+
+  async function handleTopup() {
+    const naira = parseFloat(topupAmount);
+    if (!naira || naira < 100) { setTopupError("Minimum top-up is ₦100."); return; }
+    setTopupLoading(true);
+    setTopupError("");
+    try {
+      const { checkout_url } = await walletApi.createTopup(nairaToKobo(naira));
+      window.open(checkout_url, "_blank", "noopener,noreferrer");
+      setShowTopup(false);
+      setTopupAmount("");
+      showToast("Payment page opened — complete your payment in the new tab");
+    } catch (e) {
+      setTopupError(e instanceof Error ? e.message : "Failed to initiate payment");
+    } finally {
+      setTopupLoading(false);
     }
   }
 
@@ -131,6 +174,74 @@ export default function Wallet() {
 
   const recentWithdrawals = transactions.filter((t) => t.type === "debit").slice(0, 5);
 
+  const topupModal = (
+    <AnimatePresence>
+      {showTopup && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => !topupLoading && setShowTopup(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-2xl p-6 max-w-sm w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-gray-900 mb-1">Add Money to Wallet</h3>
+            <p className="text-sm text-gray-500 mb-5">Pay by card or instant bank transfer — powered by Nomba.</p>
+
+            <label className="block text-sm font-semibold text-gray-700 mb-2">Amount (₦)</label>
+            <input
+              type="number"
+              min="100"
+              placeholder="Enter amount e.g. 500"
+              value={topupAmount}
+              onChange={(e) => setTopupAmount(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#0D631B] bg-gray-50 focus:bg-white transition-colors mb-1"
+              autoFocus
+            />
+            <p className="text-xs text-gray-400 mb-4">Minimum ₦100</p>
+
+            {topupError && (
+              <p className="text-red-500 text-xs mb-3 px-3 py-2 bg-red-50 rounded-xl">{topupError}</p>
+            )}
+
+            <div className="bg-blue-50 rounded-xl px-4 py-3 flex items-start gap-2 text-xs text-blue-700 mb-5">
+              <i className="ri-information-line mt-0.5 flex-shrink-0" />
+              <span>A secure Nomba payment page will open in a new tab. Pay by card or bank transfer. Your wallet is credited automatically on payment.</span>
+            </div>
+
+            <div className="flex gap-3">
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setShowTopup(false)}
+                disabled={topupLoading}
+                className="flex-1 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={handleTopup}
+                disabled={topupLoading || !topupAmount}
+                className="flex-1 py-3 rounded-xl bg-[#e8a000] text-white text-sm font-semibold hover:bg-[#d09000] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {topupLoading
+                  ? <><i className="ri-loader-4-line animate-spin" /> Opening…</>
+                  : <><i className="ri-external-link-line" /> Pay Now</>
+                }
+              </motion.button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   return (
     <motion.div
       className="space-y-6"
@@ -138,6 +249,25 @@ export default function Wallet() {
       initial="hidden"
       animate="show"
     >
+      {/* Toast */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            className={`fixed top-4 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium shadow-lg ${
+              toast.ok ? "bg-[#0D631B] text-white" : "bg-red-500 text-white"
+            }`}
+          >
+            <i className={toast.ok ? "ri-checkbox-circle-line" : "ri-error-warning-line"} />
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {topupModal}
+
       <motion.div variants={fadeUp}>
         <p className="text-[#0D631B] text-sm flex items-center gap-1 mb-1">
           <i className="ri-lock-line" /> Escrow Protected Funds
@@ -177,6 +307,16 @@ export default function Wallet() {
                 <i className="ri-lock-line" /> {formatNaira(wallet.pending_balance)} held in escrow
               </p>
             )}
+            <div className="mt-4">
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => { setShowTopup(true); setTopupAmount(""); setTopupError(""); }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#e8a000] text-white font-medium text-sm hover:bg-[#d09000] transition-colors"
+              >
+                <i className="ri-bank-card-line" /> Add Money
+              </motion.button>
+            </div>
           </motion.div>
 
           {/* Request Payout */}

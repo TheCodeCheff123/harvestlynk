@@ -506,6 +506,14 @@ export const walletApi = {
       "/api/v1/wallet/refresh",
       { method: "POST" }
     ),
+
+  // Creates a Nomba Checkout order for wallet funding.
+  // Returns a checkout_url to redirect/open and an order_reference for tracking.
+  createTopup: (amountKobo: number) =>
+    apiFetch<{ checkout_url: string; order_reference: string; amount: number }>(
+      "/api/v1/wallet/topup",
+      { method: "POST", body: JSON.stringify({ amount: amountKobo }) }
+    ),
 };
 
 // ─── Virtual Accounts API ─────────────────────────────────────────────────────

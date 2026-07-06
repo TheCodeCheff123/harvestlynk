@@ -3,7 +3,7 @@ import { eq, desc, and, gte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { db } from "../db/index.js";
-import { getNigerianBanks, lookupAccount, initiateTransfer, requeryTransfer, fetchVirtualAccountTransactions, type TransferOutcome } from "../utils/nomba.js";
+import { getNigerianBanks, lookupAccount, initiateTransfer, requeryTransfer, fetchVirtualAccountTransactions, createCheckoutLink, type TransferOutcome } from "../utils/nomba.js";
 import { payouts, wallets, transactions, walletLedgerEntries, virtualAccounts } from "../db/schema.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
@@ -640,6 +640,12 @@ export async function refreshWalletBalance(req: AuthRequest, res: Response) {
     return;
   }
 
+  console.log(`[wallet-refresh] fetched ${nombaTransactions.length} txs from Nomba for account ${virtualAccount.nombaAccountId}`);
+  if (nombaTransactions.length > 0) {
+    // Log first tx so we can verify field names in Railway.
+    console.log("[wallet-refresh] sample tx:", JSON.stringify(nombaTransactions[0]).slice(0, 400));
+  }
+
   // Filter to successful CREDIT transactions directed at this specific VA only.
   // Nomba's /v1/transactions/accounts response uses:
   //   entryType:               "CREDIT" | "DEBIT"
@@ -661,6 +667,8 @@ export async function refreshWalletBalance(req: AuthRequest, res: Response) {
       vaRef === VA_REF   // must belong to this exact virtual account
     );
   });
+
+  console.log(`[wallet-refresh] VA_REF="${VA_REF}" → ${inflowTxs.length} matching inflow txs after filter`);
 
   if (inflowTxs.length === 0) {
     // Nothing to sync — just return current balance.
@@ -763,4 +771,66 @@ export async function refreshWalletBalance(req: AuthRequest, res: Response) {
     available_balance: String(updatedWallet?.availableBalance ?? wallet.availableBalance),
     pending_balance: String(updatedWallet?.pendingBalance ?? wallet.pendingBalance),
   });
+}
+
+// ─── Topup prefix — used to identify wallet-funding checkout orders in webhooks ─
+export const TOPUP_ORDER_PREFIX = "topup-";
+
+const topupSchema = z.object({
+  amount: z.number().int().min(10000, "Minimum top-up is ₦100"),   // kobo
+});
+
+/**
+ * POST /wallet/topup
+ *
+ * Creates a Nomba Checkout order for wallet funding.
+ * The user pays via card or bank transfer on Nomba's hosted page.
+ * On success Nomba fires a payment_success webhook which credits the wallet.
+ * The callbackUrl brings the user back to the wallet page for confirmation.
+ */
+export async function createTopup(req: AuthRequest, res: Response) {
+  const parsed = topupSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors });
+    return;
+  }
+
+  const { amount } = parsed.data;
+  const userId = req.user!.userId;
+  const userEmail = req.user!.email;
+
+  // Nomba caps orderReference at 50 chars.
+  // Format: "topup-" (6) + 8-char userId prefix + "-" + 8-char random = 23 chars total.
+  // The full userId is embedded in orderMetaData so the webhook can look it up.
+  const orderReference = `${TOPUP_ORDER_PREFIX}${userId.slice(0, 8)}-${randomUUID().slice(0, 8)}`;
+
+  // Callback URL: where Nomba redirects after payment.
+  // The dashboard reads ?topup=success&ref=... and refreshes the balance.
+  const appBaseUrl = process.env["FRONTEND_URL"] ?? "http://localhost:3000";
+  const role = req.user!.role; // "buyer" | "farmer"
+  const callbackUrl = `${appBaseUrl}/dashboard/${role}/wallet?topup=success&ref=${encodeURIComponent(orderReference)}`;
+
+  let checkoutLink: string;
+  try {
+    const result = await createCheckoutLink({
+      amountKobo: amount,
+      customerEmail: userEmail,
+      orderReference,
+      callbackUrl,
+      orderMetaData: {
+        type: "wallet_topup",
+        userId,
+      },
+    });
+    checkoutLink = result.checkoutLink;
+  } catch (error) {
+    console.error("[wallet-topup] Nomba checkout creation failed:", error);
+    res.status(502).json({
+      error: "Unable to create payment session",
+      details: error instanceof Error ? error.message : String(error),
+    });
+    return;
+  }
+
+  res.json({ checkout_url: checkoutLink, order_reference: orderReference, amount });
 }

@@ -503,12 +503,24 @@ export async function fetchVirtualAccountTransactions(
   nombaAccountId: string,
   limit = 20,
 ): Promise<Array<Record<string, unknown>>> {
-  const data = await nombaRequest<{ results?: Array<Record<string, unknown>>; transactions?: Array<Record<string, unknown>> } | Array<Record<string, unknown>>>(
+  // Use nombaRequestRaw so a code:"200" response (which Nomba sends on this
+  // shared hackathon account instead of "00") does NOT throw. We inspect
+  // the payload ourselves and treat any 2xx HTTP status as success.
+  type TxListData =
+    | { results?: Array<Record<string, unknown>>; transactions?: Array<Record<string, unknown>> }
+    | Array<Record<string, unknown>>;
+
+  const payload = await nombaRequestRaw<TxListData>(
     `/v1/transactions/accounts?accountId=${encodeURIComponent(nombaAccountId)}&limit=${limit}`,
     "GET",
   );
 
-  // Nomba returns { results: [...] } on the transactions/accounts endpoint.
+  // Log raw so we can verify the exact shape in Railway logs.
+  console.log("[fetchVirtualAccountTransactions] raw payload:", JSON.stringify(payload).slice(0, 500));
+
+  const data = payload.data;
+
+  // Nomba returns { data: { results: [...] } } on the transactions/accounts endpoint.
   // Fall back to { transactions: [...] } or a raw array for other variants.
   if (Array.isArray(data)) return data;
   if (data && typeof data === "object") {

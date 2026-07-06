@@ -8,6 +8,7 @@ import {
   withdraw,
   requeryPayout,
   refreshWalletBalance,
+  createTopup,
 } from "../../controllers/wallet.controller.js";
 import { authenticate } from "../../middleware/auth.js";
 
@@ -22,6 +23,9 @@ router.get("/transactions", getTransactions);
 router.get("/ledger", getLedgerEntries);
 router.get("/verify-bank", verifyBank);
 router.post("/withdraw", withdraw);
+
+// Checkout-based wallet top-up — returns a Nomba checkout URL.
+router.post("/topup", createTopup);
 
 // Manual balance refresh — queries Nomba for missed VA credits.
 router.post("/refresh", refreshWalletBalance);
