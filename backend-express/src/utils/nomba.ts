@@ -172,76 +172,45 @@ function secureCompare(a: string, b: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
-function hmacDigest(value: string | Buffer, encoding: "base64" | "hex"): string {
-  return createHmac("sha256", getNombaWebhookSecret()).update(value).digest(encoding);
-}
-
 /**
- * Build Nomba's documented signing string from the parsed payload.
+ * Build Nomba's documented signing payload string.
  *
- * Nomba's documentation describes the signed string as a concatenation of specific
- * fields: event_type + requestId + merchant fields + transaction fields + nomba-timestamp.
- * In practice the exact field list varies by event type; we attempt the most common shape
- * and let the raw-body check handle any mismatch.
+ * From Nomba's official webhook docs, the hashing payload is:
+ *   eventType:requestId:userId:walletId:transactionId:transactionType:transactionTime:transactionResponseCode:timestamp
  *
- * Reference: https://nomba.com/docs/webhooks
+ * responseCode "null" (string) is treated as empty string per the sample code.
+ * The result is HMAC-SHA256 encoded as base64.
  */
-function buildNombaSigningString(payload: unknown, timestamp?: string): string | null {
-  if (!payload || typeof payload !== "object") return null;
-  const p = payload as Record<string, unknown>;
-  const data = (p["data"] ?? {}) as Record<string, unknown>;
+function buildNombaSigningString(payload: unknown, timestamp: string): string {
+  const p = (payload && typeof payload === "object" ? payload : {}) as Record<string, unknown>;
+  const data = (p["data"] && typeof p["data"] === "object" ? p["data"] : {}) as Record<string, unknown>;
+  const merchant = (data["merchant"] && typeof data["merchant"] === "object" ? data["merchant"] : {}) as Record<string, unknown>;
+  const transaction = (data["transaction"] && typeof data["transaction"] === "object" ? data["transaction"] : {}) as Record<string, unknown>;
 
-  const parts: string[] = [];
+  const eventType   = String(p["event_type"] ?? p["eventType"] ?? p["event"] ?? p["type"] ?? "");
+  const requestId   = String(p["requestId"] ?? p["request_id"] ?? "");
+  const userId      = String(merchant["userId"] ?? merchant["user_id"] ?? "");
+  const walletId    = String(merchant["walletId"] ?? merchant["wallet_id"] ?? "");
+  const txId        = String(transaction["transactionId"] ?? transaction["id"] ?? "");
+  const txType      = String(transaction["type"] ?? "");
+  const txTime      = String(transaction["time"] ?? transaction["createdAt"] ?? "");
+  const rawCode     = String(transaction["responseCode"] ?? transaction["response_code"] ?? "");
+  const txCode      = rawCode === "null" ? "" : rawCode;
 
-  // event type — top-level or nested
-  const eventType = String(p["event"] ?? p["type"] ?? p["eventType"] ?? data["event"] ?? "");
-  if (eventType) parts.push(eventType);
-
-  // requestId
-  const requestId = String(p["requestId"] ?? p["request_id"] ?? data["requestId"] ?? "");
-  if (requestId) parts.push(requestId);
-
-  // merchant / account fields
-  const merchantId = String(p["merchantId"] ?? p["merchant_id"] ?? data["merchantId"] ?? "");
-  if (merchantId) parts.push(merchantId);
-
-  // transaction fields (common across checkout and transfer events)
-  const orderRef = String(
-    p["orderReference"] ?? p["order_ref"] ?? data["orderReference"] ?? data["merchantTxRef"] ?? "",
-  );
-  if (orderRef) parts.push(orderRef);
-
-  const amount = String(p["amount"] ?? data["amount"] ?? data["transactionAmount"] ?? "");
-  if (amount) parts.push(amount);
-
-  const currency = String(p["currency"] ?? data["currency"] ?? "");
-  if (currency) parts.push(currency);
-
-  if (timestamp) parts.push(timestamp);
-
-  return parts.length > 0 ? parts.join("") : null;
+  return [eventType, requestId, userId, walletId, txId, txType, txTime, txCode, timestamp].join(":");
 }
 
 export function verifyWebhookSignatureWithTimestamp(
-  payload: string | Buffer,
+  rawBody: string | Buffer,
   signature: string,
-  timestamp?: string,
+  timestamp: string | undefined,
 ): boolean {
   if (!signature) return false;
+  // If no timestamp header, we cannot construct the signing string — reject.
+  if (!timestamp) return false;
 
-  const raw = Buffer.isBuffer(payload) ? payload : Buffer.from(payload);
+  const raw = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody);
   const rawText = raw.toString("utf8");
-
-  // Candidates to try in priority order:
-  // 1. raw body as-is (most common — many gateways HMAC the raw request body)
-  // 2. raw body string
-  // 3. timestamp-prefixed body  (nomba-timestamp + ":" + body)
-  // 4. Nomba field-based signing string (documented format)
-  const signedPayloads: (string | Buffer)[] = [raw, rawText];
-
-  if (timestamp) {
-    signedPayloads.push(`${timestamp}:${rawText}`);
-  }
 
   let parsedPayload: unknown;
   try {
@@ -250,23 +219,9 @@ export function verifyWebhookSignatureWithTimestamp(
     parsedPayload = null;
   }
 
-  const fieldSigningString = buildNombaSigningString(parsedPayload, timestamp);
-  if (fieldSigningString) {
-    signedPayloads.push(fieldSigningString);
-    // Also without timestamp in case timestamp is not included in the field string
-    const noTs = buildNombaSigningString(parsedPayload, undefined);
-    if (noTs && noTs !== fieldSigningString) signedPayloads.push(noTs);
-  }
-
-  for (const candidate of signedPayloads) {
-    const base64Digest = hmacDigest(candidate, "base64");
-    const hexDigest = hmacDigest(candidate, "hex");
-    if (secureCompare(base64Digest, signature) || secureCompare(hexDigest, signature)) {
-      return true;
-    }
-  }
-
-  return false;
+  const signingString = buildNombaSigningString(parsedPayload, timestamp);
+  const digest = createHmac("sha256", getNombaWebhookSecret()).update(signingString).digest("base64");
+  return secureCompare(digest, signature);
 }
 
 export async function createCheckoutLink(options: {

@@ -64,11 +64,15 @@ export default function BuyerWallet() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-refresh when Nomba redirects back with ?topup=success
+  // Auto-refresh when Nomba redirects back with ?topup=success.
+  // Call refreshBalance() first so any missed webhook credit is applied
+  // before we read the balance from DB.
   useEffect(() => {
     if (searchParams.get("topup") === "success") {
       setRefreshingBalance(true);
-      refreshWallet()
+      walletApi.refreshBalance()
+        .catch(() => {})
+        .then(() => refreshWallet())
         .then(() => loadTransactions())
         .then(() => showToast("Wallet credited successfully!"))
         .finally(() => setRefreshingBalance(false));

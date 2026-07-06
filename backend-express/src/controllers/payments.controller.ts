@@ -54,18 +54,13 @@ function getNombaReference(payload: any): string | undefined {
 
 function getVirtualAccountRef(payload: any): string | undefined {
   return (
-    // Nomba production: deposit event nests accountRef under data.customerAccount
+    // Documented shape: data.transaction.aliasAccountReference (payment_success VA transfer)
+    payload.data?.transaction?.aliasAccountReference ??
+    // Fallbacks
     payload.data?.customerAccount?.accountRef ??
-    payload.data?.customer_account?.account_ref ??
-    // Nomba production: sometimes directly on data
     payload.data?.accountRef ??
-    payload.data?.account_ref ??
-    // Nomba virtual account objects
     payload.data?.virtualAccount?.accountRef ??
-    payload.data?.virtual_account?.account_ref ??
-    // Top-level fallbacks
-    payload.accountRef ??
-    payload.account_ref
+    payload.accountRef
   );
 }
 
@@ -82,14 +77,15 @@ function getVirtualAccountBankNumber(payload: any): string | undefined {
 
 function getWebhookAmount(payload: any): number | undefined {
   const raw =
-    payload.amount ??
-    payload.data?.amount ??
+    // Documented shape: data.transaction.transactionAmount (payment_success, payout_success, etc.)
+    payload.data?.transaction?.transactionAmount ??
+    payload.data?.transaction?.transaction_amount ??
+    // Fallbacks for older / variant shapes
     payload.data?.transactionAmount ??
     payload.data?.transaction_amount ??
+    payload.data?.amount ??
     payload.data?.totalAmount ??
-    payload.data?.total_amount ??
-    payload.data?.amountPaid ??
-    payload.data?.amount_paid;
+    payload.amount;
 
   const amount = typeof raw === "string" ? Number(raw.replace(/,/g, "")) : Number(raw);
   return Number.isFinite(amount) && amount > 0 ? amount : undefined;
@@ -136,15 +132,6 @@ async function verifyNombaPaymentIfPossible(orderReference: string): Promise<boo
 }
 
 export async function handleNombaWebhook(req: Request, res: Response) {
-  // ── Full diagnostic log (always — helps debug signature mismatches) ────────
-  const allHeaders: Record<string, string | string[] | undefined> = {};
-  for (const [k, v] of Object.entries(req.headers)) allHeaders[k] = v;
-  const rawBodyForLog = Buffer.isBuffer(req.body) ? req.body.toString("utf8") : String(req.body ?? "");
-  console.log("[nomba-webhook] ── INCOMING REQUEST ──────────────────────────");
-  console.log("[nomba-webhook] headers:", JSON.stringify(allHeaders, null, 2));
-  console.log("[nomba-webhook] body length:", rawBodyForLog.length);
-  console.log("[nomba-webhook] body (first 1000 chars):", rawBodyForLog.slice(0, 1000));
-
   // express.raw() in app.ts captures this path before JSON middleware,
   // so req.body must be a Buffer. Any other type means a misconfigured
   // middleware stack — reject immediately to prevent signature bypass.
@@ -154,59 +141,21 @@ export async function handleNombaWebhook(req: Request, res: Response) {
     return;
   }
   const rawBody = req.body;
-  const rawText = rawBody.toString("utf8");
 
-  // Collect every header variant that could carry the signature or timestamp
-  const signature = String(
-    req.header("nomba-signature") ??
-    req.header("Nomba-Signature") ??
-    req.header("x-nomba-signature") ??
-    req.header("X-Nomba-Signature") ??
-    req.header("signature") ??
-    ""
-  );
-  const timestamp =
-    req.header("nomba-timestamp") ??
-    req.header("Nomba-Timestamp") ??
-    req.header("x-nomba-timestamp") ??
-    req.header("X-Nomba-Timestamp") ??
-    req.header("timestamp") ??
-    undefined;
+  // HTTP header names are case-insensitive; Express lowercases them for us.
+  const signature = req.header("nomba-signature") ?? req.header("nomba-sig-value") ?? "";
+  const timestamp = req.header("nomba-timestamp");
 
-  console.log("[nomba-webhook] signature header value:", signature || "(empty)");
-  console.log("[nomba-webhook] timestamp header value:", timestamp ?? "(absent)");
-
-  // Log all HMAC candidates we are about to try so we can compare offline
-  const { createHmac } = await import("node:crypto");
-  const webhookSecret = process.env["NOMBA_WEBHOOK_SECRET"] ?? "";
-  const candidates: Array<{ label: string; value: string }> = [
-    { label: "raw-body-buffer",        value: createHmac("sha256", webhookSecret).update(rawBody).digest("hex") },
-    { label: "raw-body-string",        value: createHmac("sha256", webhookSecret).update(rawText).digest("hex") },
-    { label: "raw-body-buffer-base64", value: createHmac("sha256", webhookSecret).update(rawBody).digest("base64") },
-    { label: "raw-body-string-base64", value: createHmac("sha256", webhookSecret).update(rawText).digest("base64") },
-  ];
-  if (timestamp) {
-    const ts = `${timestamp}:${rawText}`;
-    candidates.push({ label: "ts:body-hex",    value: createHmac("sha256", webhookSecret).update(ts).digest("hex") });
-    candidates.push({ label: "ts:body-base64", value: createHmac("sha256", webhookSecret).update(ts).digest("base64") });
-  }
-  console.log("[nomba-webhook] HMAC candidates (compare with received signature):");
-  for (const c of candidates) console.log(`  ${c.label}: ${c.value}`);
-
-  const signatureVerified = verifyWebhookSignatureWithTimestamp(rawBody, signature, timestamp);
-  console.log("[nomba-webhook] signature verified:", signatureVerified);
-
-  if (!signatureVerified) {
-    // TEMPORARY: log and continue rather than reject, so we can observe the
-    // full payload and fix the signature algorithm. Remove this bypass once
-    // the correct signing method is confirmed.
-    console.warn("[nomba-webhook] ⚠ signature mismatch — processing anyway for diagnostics (REMOVE IN PROD)");
+  if (!verifyWebhookSignatureWithTimestamp(rawBody, signature, timestamp)) {
+    console.warn("[nomba-webhook] signature verification failed — rejecting request");
+    res.status(401).json({ error: "Invalid webhook signature" });
+    return;
   }
 
   let payload: any;
   try {
     payload = parseWebhookPayload(rawBody);
-  } catch (error) {
+  } catch {
     res.status(400).json({ error: "Unable to parse webhook payload" });
     return;
   }
@@ -218,56 +167,48 @@ export async function handleNombaWebhook(req: Request, res: Response) {
   }
 
   switch (eventType) {
-    // ── Checkout / card payment success ──────────────────────────────────────
+    // ── Payment success (checkout order OR virtual account transfer) ──────────
+    // Nomba sends event_type:"payment_success" for both card payments and VA
+    // credits. Distinguish by presence of aliasAccountType:"VIRTUAL" / accountRef.
     case "payment_success":
-    case "payment.success":
-    case "checkout.payment.success":
-    case "checkout_order.success":
-    case "collection.success":
-    case "successful_transaction": // Nomba sandbox alias
-      if (getOrderReference(payload)) {
-        await handlePaymentSuccess(payload, res);
-      } else if (getVirtualAccountRef(payload)) {
+      if (getVirtualAccountRef(payload) || payload.data?.transaction?.aliasAccountType === "VIRTUAL") {
         await handleVirtualAccountPayment(payload, res);
       } else {
-        res.status(400).json({ error: "Missing order reference or virtual account reference" });
+        await handlePaymentSuccess(payload, res);
       }
       break;
-    // ── Virtual account / wallet-funding credits ──────────────────────────────
-    case "virtual_account_payment":
-    case "virtual_account.payment.success":
-    case "virtual_account_credit":
-    case "virtual_account.credit":
-    case "inflow":        // Nomba sandbox VA event name
-    case "collection":    // alternative VA collection event
-      await handleVirtualAccountPayment(payload, res);
-      break;
-    // ── Payment / checkout failure ────────────────────────────────────────────
+
+    // ── Payment failure ───────────────────────────────────────────────────────
     case "payment_failed":
-    case "payment.failed":
-    case "checkout.payment.failed":
-    case "checkout.payment.failure":
-    case "failed_transaction":
       await handlePaymentFailed(payload, res);
       break;
-    // ── Transfer / payout success ─────────────────────────────────────────────
+
+    // ── Payment reversal (chargeback / customer refund back to sender) ────────
+    // Money has already left the account. Log it and alert — do not silently 200.
+    case "payment_reversal":
+      console.error("[nomba-webhook] payment_reversal received — manual review required:", JSON.stringify(payload).slice(0, 500));
+      // TODO: debit the wallet and notify the user when reversal handling is built.
+      res.status(200).json({ received: true, message: "payment_reversal logged — pending implementation" });
+      break;
+
+    // ── Payout success ────────────────────────────────────────────────────────
     case "payout_success":
-    case "transfer_success":
-    case "transfer.success":
-    case "transfer.completed":
       await handlePayoutSuccess(payload, res);
       break;
-    // ── Transfer / payout failure or reversal ─────────────────────────────────
+
+    // ── Payout failure ────────────────────────────────────────────────────────
     case "payout_failed":
-    case "payout_refund":
-    case "transfer_failed":
-    case "transfer.failed":
-    case "transfer.reversed":
-    case "transfer_reversal":
       await handlePayoutFailure(payload, res);
       break;
+
+    // ── Payout refund (failed transfer credited back to our account) ──────────
+    case "payout_refund":
+      await handlePayoutFailure(payload, res);
+      break;
+
     default:
-      res.status(200).json({ received: true, message: `Ignored event type '${eventType}'` });
+      console.log(`[nomba-webhook] unhandled event type: '${eventType}'`);
+      res.status(200).json({ received: true, message: `Unhandled event type '${eventType}'` });
   }
 }
 
@@ -687,10 +628,6 @@ async function handlePaymentFailed(payload: any, res: Response) {
 
 
 async function handleVirtualAccountPayment(payload: any, res: Response) {
-  // Log the raw payload in production so we can inspect the exact Nomba shape if needed.
-  console.log("[va-payment] raw payload keys:", JSON.stringify(Object.keys(payload)));
-  console.log("[va-payment] data keys:", JSON.stringify(Object.keys(payload.data ?? {})));
-
   const accountRef = getVirtualAccountRef(payload);
   const bankAccountNumber = getVirtualAccountBankNumber(payload);
   const amount = getWebhookAmount(payload);
@@ -704,8 +641,6 @@ async function handleVirtualAccountPayment(payload: any, res: Response) {
     payload.data?.merchantTxRef ??
     "",
   ).trim();
-
-  console.log("[va-payment] accountRef:", accountRef, "bankAccountNumber:", bankAccountNumber, "amount:", amount, "ref:", paymentReference);
 
   if (!amount) {
     res.status(400).json({ error: "Missing amount in virtual account payment webhook" });

@@ -66,11 +66,15 @@ export default function Wallet() {
       .finally(() => setBankLoading(false));
   }, [refreshWallet]);
 
-  // Auto-refresh when Nomba redirects back with ?topup=success
+  // Auto-refresh when Nomba redirects back with ?topup=success.
+  // Call refreshBalance() first so any missed webhook credit is applied
+  // before we read the balance from DB.
   useEffect(() => {
     if (searchParams.get("topup") === "success") {
       setRefreshing(true);
-      refreshWallet()
+      walletApi.refreshBalance()
+        .catch(() => {})
+        .then(() => refreshWallet())
         .then(() => walletApi.getTransactions().then(setTransactions).catch(() => {}))
         .then(() => showToast("Wallet credited successfully!"))
         .finally(() => setRefreshing(false));
