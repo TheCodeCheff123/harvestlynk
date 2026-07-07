@@ -293,9 +293,14 @@ export default function FarmerOrders() {
                       </td>
                       <td className="px-4 md:px-6 py-4">
                         <div className="flex items-center gap-2">
-                          <div className={`w-8 h-8 rounded-full ${color} text-white text-xs font-bold flex items-center justify-center flex-shrink-0`}>
-                            {initials(o.buyer.name)}
-                          </div>
+                          {o.buyer.image ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={o.buyer.image} alt={o.buyer.name} className={`w-8 h-8 rounded-full object-cover flex-shrink-0`} />
+                          ) : (
+                            <div className={`w-8 h-8 rounded-full ${color} text-white text-xs font-bold flex items-center justify-center flex-shrink-0`}>
+                              {initials(o.buyer.name)}
+                            </div>
+                          )}
                           <span className="text-gray-700">{o.buyer.name}</span>
                         </div>
                       </td>

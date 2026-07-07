@@ -82,8 +82,8 @@ export default function TrustSection() {
             </motion.h2>
             <motion.p variants={fadeUp} className="text-gray-500 leading-relaxed mb-8">
               We understand the challenges of agricultural trade in Nigeria.
-              That's why our system is built on trust, verified through Squad
-              (by HabarPay) for absolute security.
+                That's why our system is built on trust, secured through Nomba
+                Payment Gateway for absolute security.
             </motion.p>
             <ul className="space-y-4 mb-8">
               {promises.map((p, i) => (
@@ -106,7 +106,7 @@ export default function TrustSection() {
             </ul>
             <motion.p variants={fadeUp} className="text-xs text-gray-400 flex items-center gap-2">
               <i className="ri-shield-line" />
-              Official Escrow Partner: Protected by Squad Payment
+              Official Escrow Partner: Protected by Nomba Payment Gateway
             </motion.p>
           </motion.div>
         </div>

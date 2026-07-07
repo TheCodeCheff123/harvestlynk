@@ -647,13 +647,15 @@ export default function BuyerWallet() {
                       {t.type === "debit" ? "−" : "+"}{formatNaira(t.amount)}
                     </td>
                     <td className="px-4 md:px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
                         t.status === "completed" ? "bg-green-100 text-[#0D631B]" :
                         t.status === "pending"   ? "bg-blue-50 text-blue-600" :
                                                    "bg-red-50 text-red-500"
                       }`}>
-                        {t.status === "pending" && <i className="ri-lock-line" />}
-                        {t.status}
+                        {t.status === "pending" && <i className="ri-send-plane-line" />}
+                        {t.status === "completed" ? "Completed" :
+                         t.status === "pending"   ? (t.type === "debit" ? "Transferred" : "Processing") :
+                                                    "Failed"}
                       </span>
                     </td>
                   </motion.tr>

@@ -209,12 +209,20 @@ function MyFarmInner() {
                         {relativeDate(item.created_at)}
                       </span>
                     </div>
-                    <button
-                      onClick={() => handleDelete(item.listing_id)}
-                      className="w-full py-2 rounded-lg text-xs font-medium transition-colors border border-gray-200 text-gray-700 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
-                    >
-                      Remove
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setEditListing(item)}
+                        className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors border border-gray-200 text-blue-600 hover:bg-blue-50 hover:border-blue-200"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(item.listing_id)}
+                        className="flex-1 py-2 rounded-lg text-xs font-medium transition-colors border border-gray-200 text-gray-700 hover:bg-red-50 hover:border-red-200 hover:text-red-600"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </div>
                 </motion.div>
               );

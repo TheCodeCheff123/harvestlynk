@@ -8,7 +8,6 @@ const navLinks = [
   { label: "How It Works", href: "#how-it-works" },
   { label: "For Farmers", href: "#for-farmers" },
   { label: "For Buyers", href: "#for-buyers" },
-  { label: "Pricing", href: "#pricing" },
 ];
 
 export default function Navbar() {

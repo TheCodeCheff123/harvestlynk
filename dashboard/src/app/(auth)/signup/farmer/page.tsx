@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
@@ -20,6 +20,19 @@ export default function FarmerSignup() {
   const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState("");
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+  const [googleBtnWidth, setGoogleBtnWidth] = useState(400);
+
+  useEffect(() => {
+    function measure() {
+      if (googleBtnRef.current) {
+        setGoogleBtnWidth(googleBtnRef.current.offsetWidth);
+      }
+    }
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
 
   async function handleCreate() {
     setFormError("");
@@ -235,18 +248,16 @@ export default function FarmerSignup() {
                 <div className="flex-1 h-px bg-gray-200" />
               </div>
 
-              <div className="w-full flex justify-center overflow-hidden">
-                <div className="w-full max-w-full">
-                  <GoogleLogin
-                    onSuccess={handleGoogleSuccess}
-                    onError={() => setFormError("Google sign-up failed. Please try again.")}
-                    text="signup_with"
-                    shape="pill"
-                    theme="outline"
-                    useOneTap={false}
-                    width="400"
-                  />
-                </div>
+              <div ref={googleBtnRef} className="w-full flex justify-center overflow-hidden">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setFormError("Google sign-up failed. Please try again.")}
+                  text="signup_with"
+                  shape="pill"
+                  theme="outline"
+                  useOneTap={false}
+                  width={String(googleBtnWidth)}
+                />
               </div>
             </div>
 

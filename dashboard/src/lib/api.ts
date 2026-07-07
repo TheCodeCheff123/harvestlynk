@@ -664,7 +664,7 @@ export interface FarmerOrder {
   created_at: string;
   updated_at: string;
   listing: { product_name: string; unit: string };
-  buyer: { name: string };
+  buyer: { name: string; image?: string | null };
 }
 
 export const ordersApi = {

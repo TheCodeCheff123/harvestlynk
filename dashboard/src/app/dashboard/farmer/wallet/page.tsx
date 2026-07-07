@@ -617,10 +617,14 @@ export default function Wallet() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-sm font-semibold text-gray-900">{formatNaira(tx.amount)}</p>
-                      <p className={`text-xs font-medium capitalize ${
+                      <p className={`text-xs font-medium ${
                         tx.status === "completed" ? "text-green-600" :
-                        tx.status === "pending"   ? "text-amber-600" : "text-red-500"
-                      }`}>{tx.status}</p>
+                        tx.status === "pending"   ? "text-blue-600" : "text-red-500"
+                      }`}>
+                        {tx.status === "completed" ? "Completed" :
+                         tx.status === "pending"   ? "Transferred" :
+                                                     "Failed"}
+                      </p>
                     </div>
                   </motion.div>
                 ))}
@@ -696,13 +700,15 @@ export default function Wallet() {
                       {t.type === "debit" ? "−" : "+"}{formatNaira(t.amount)}
                     </td>
                     <td className="px-4 md:px-6 py-4">
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold capitalize ${
+                      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
                         t.status === "completed" ? "bg-green-100 text-[#0D631B]" :
-                        t.status === "pending"   ? "bg-amber-50 text-amber-600" :
+                        t.status === "pending"   ? "bg-blue-50 text-blue-600" :
                                                    "bg-red-50 text-red-500"
                       }`}>
-                        {t.status === "pending" && <i className="ri-time-line" />}
-                        {t.status === "completed" ? "Completed" : t.status === "pending" ? "Pending" : "Failed"}
+                        {t.status === "pending" && <i className="ri-send-plane-line" />}
+                        {t.status === "completed" ? "Completed" :
+                         t.status === "pending"   ? (t.type === "debit" ? "Transferred" : "Processing") :
+                                                    "Failed"}
                       </span>
                     </td>
                   </motion.tr>

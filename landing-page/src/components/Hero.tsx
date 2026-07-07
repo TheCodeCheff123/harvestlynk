@@ -122,7 +122,7 @@ export default function Hero() {
             </div>
             <div>
               <p className="text-gray-400 text-xs">Protection by</p>
-              <p className="text-gray-900 text-sm font-semibold">Squad Payment</p>
+              <p className="text-gray-900 text-sm font-semibold">Nomba Payment</p>
             </div>
           </div>
         </motion.div>

@@ -292,7 +292,7 @@ export async function getMyBuyerOrders(req: AuthRequest, res: Response) {
 
 export async function getMyFarmerOrders(req: AuthRequest, res: Response) {
   const rows = await db
-    .select({ order: orders, listing: listings, buyer: { firstName: users.firstName, lastName: users.lastName } })
+    .select({ order: orders, listing: listings, buyer: { firstName: users.firstName, lastName: users.lastName, image: users.image } })
     .from(orders)
     .innerJoin(listings, eq(orders.listingId, listings.listingId))
     .innerJoin(users, eq(orders.buyerId, users.id))
@@ -317,7 +317,7 @@ export async function getMyFarmerOrders(req: AuthRequest, res: Response) {
     created_at: order.createdAt,
     updated_at: order.updatedAt,
     listing: { product_name: listing.productName, unit: listing.unit },
-    buyer: { name: `${buyer.firstName} ${buyer.lastName}` },
+    buyer: { name: `${buyer.firstName} ${buyer.lastName}`, image: buyer.image },
   })));
 }
 
