@@ -96,6 +96,7 @@ export interface User {
   image: string | null;
   phoneNumber: string | null;
   role: "farmer" | "buyer";
+  username: string | null;
   farmName: string | null;
   location: string | null;
   createdAt: string;
@@ -144,6 +145,7 @@ export interface UpdateProfileData {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  username?: string;
   bio?: string;
   locationState?: string;
   locationLga?: string;
@@ -469,6 +471,11 @@ export const usersApi = {
       `/api/v1/users/${farmerId}/ratings`
     ),
 
+  checkUsername: (username: string) =>
+    apiFetch<{ available: boolean; valid: boolean }>(
+      `/api/v1/users/check-username?username=${encodeURIComponent(username)}`
+    ),
+
   changePassword: (currentPassword: string, newPassword: string) =>
     apiFetch<{ message: string }>("/api/v1/auth/change-password", {
       method: "PATCH",
@@ -516,6 +523,12 @@ export const walletApi = {
     apiFetch<{ checkout_url: string; order_reference: string; amount: number }>(
       "/api/v1/wallet/topup",
       { method: "POST", body: JSON.stringify({ amount: amountKobo }) }
+    ),
+
+  internalTransfer: (data: { to_username: string; amount: number; note?: string }) =>
+    apiFetch<{ success: boolean; amount: number; recipient_name: string; recipient_username: string; transaction_id: string }>(
+      "/api/v1/wallet/transfer",
+      { method: "POST", body: JSON.stringify(data) }
     ),
 };
 
@@ -765,4 +778,80 @@ export const scansApi = {
 
   getMyScans: () =>
     apiFetch<Scan[]>("/api/v1/scans/my"),
+};
+
+// ─── Chat API ─────────────────────────────────────────────────────────────────
+
+export interface Conversation {
+  conversation_id: string;
+  buyer_id: string;
+  farmer_id: string;
+  listing_id: string;
+  listing_name: string;
+  listing_image: string | null;
+  other_party_name: string;
+  last_message_preview: string | null;
+  unread_count: number;
+  last_message_at: string;
+  created_at: string;
+}
+
+export interface ChatMessage {
+  message_id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  type: "text" | "offer";
+  offer_price_kobo: number | null;
+  offer_quantity: number | null;
+  offer_unit: string | null;
+  offer_expires_at: string | null;
+  is_read: boolean;
+  created_at: string;
+  expires_at: string;
+}
+
+export const chatApi = {
+  createConversation: (listing_id: string) =>
+    apiFetch<Conversation>("/api/v1/conversations", {
+      method: "POST",
+      body: JSON.stringify({ listing_id }),
+    }),
+
+  getConversations: () =>
+    apiFetch<Conversation[]>("/api/v1/conversations"),
+
+  getConversation: (id: string) =>
+    apiFetch<{ conversation: Conversation; messages: ChatMessage[] }>(
+      `/api/v1/conversations/${id}`
+    ),
+
+  sendMessage: (id: string, data: {
+    content: string;
+    type?: "text" | "offer";
+    offer_price_kobo?: number;
+    offer_quantity?: number;
+    offer_unit?: string;
+    offer_expires_hours?: number;
+  }) =>
+    apiFetch<ChatMessage>(`/api/v1/conversations/${id}/messages`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  markRead: (id: string) =>
+    apiFetch<{ updated: number }>(`/api/v1/conversations/${id}/read`, {
+      method: "PATCH",
+    }),
+
+  buyViaChat: (id: string, data: {
+    message_id: string;
+    delivery_method: "pickup" | "delivery";
+    delivery_address?: string;
+    payment_method: "wallet" | "checkout";
+  }) =>
+    apiFetch<{ order_id: string; checkout_link: string | null }>(
+      `/api/v1/conversations/${id}/buy`,
+      { method: "POST", body: JSON.stringify(data) }
+    ),
 };

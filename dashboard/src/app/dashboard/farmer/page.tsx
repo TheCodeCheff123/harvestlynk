@@ -46,9 +46,23 @@ export default function FarmerDashboard() {
   const [unverified, setUnverified] = useState(false);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUnverified(localStorage.getItem("hl_farmer_verified") === "false");
-  }, []);
+    if (!user) return;
+    const stored = localStorage.getItem("hl_farmer_verified");
+    if (stored === "false") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUnverified(true);
+    } else if (stored === null) {
+      // First visit — if farmer has no bank account linked, mark as needing onboarding
+      if (!user.bank_account_number) {
+        localStorage.setItem("hl_farmer_verified", "false");
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setUnverified(true);
+      } else {
+        localStorage.setItem("hl_farmer_verified", "true");
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const fetchData = useCallback(async () => {
     setLoadingData(true);
@@ -208,7 +222,7 @@ export default function FarmerDashboard() {
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-medium text-gray-900 text-sm">{item.product_name}</p>
                       <p className="text-[#0D631B] text-sm font-semibold">
-                        ₦{item.price_per_unit.toLocaleString("en-NG")}/{item.unit}
+                        ₦{(item.price_per_unit / 100).toLocaleString("en-NG")}/{item.unit}
                       </p>
                     </div>
                     <p className="text-xs text-gray-400 flex items-center gap-1">
@@ -286,7 +300,7 @@ export default function FarmerDashboard() {
                         {o.listing.product_name} ({parseFloat(o.quantity)} {o.listing.unit})
                       </td>
                       <td className="px-4 md:px-6 py-4 font-semibold text-gray-900">
-                        ₦{o.total_amount.toLocaleString("en-NG")}
+                        ₦{(o.total_amount / 100).toLocaleString("en-NG")}
                       </td>
                       <td className="px-4 md:px-6 py-4">
                         <span className="flex items-center gap-2 text-gray-600 text-xs">

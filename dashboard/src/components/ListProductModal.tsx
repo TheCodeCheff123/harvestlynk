@@ -28,9 +28,12 @@ export default function ListProductModal({ onClose, onCreated, editListing }: Pr
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   // Form state — pre-fill from editListing if editing
+  // price_per_unit comes from the backend in kobo — display in naira to the farmer
   const [productName, setProductName] = useState(editListing?.product_name ?? "");
   const [category, setCategory] = useState(editListing?.category ?? CATEGORIES[0]);
-  const [pricePerUnit, setPricePerUnit] = useState(editListing ? String(editListing.price_per_unit) : "");
+  const [pricePerUnit, setPricePerUnit] = useState(
+    editListing ? String(Math.round(editListing.price_per_unit / 100)) : ""
+  );
   const [quantity, setQuantity] = useState(editListing ? String(parseFloat(editListing.quantity)) : "");
   const [unit, setUnit] = useState(editListing?.unit ?? UNITS[0]);
   const [locationState, setLocationState] = useState(editListing?.location_state ?? "");
@@ -66,8 +69,10 @@ export default function ListProductModal({ onClose, onCreated, editListing }: Pr
     if (!locationState.trim()) { setFormError("Location state is required."); return; }
     const qty = parseFloat(quantity);
     if (!quantity || isNaN(qty) || qty <= 0) { setFormError("Enter a valid quantity."); return; }
-    const price = parseInt(pricePerUnit, 10);
-    if (!pricePerUnit || isNaN(price) || price <= 0) { setFormError("Enter a valid price per unit."); return; }
+    // Farmer enters price in naira; backend stores in kobo
+    const priceNaira = parseFloat(pricePerUnit);
+    if (!pricePerUnit || isNaN(priceNaira) || priceNaira <= 0) { setFormError("Enter a valid price per unit."); return; }
+    const price = Math.round(priceNaira * 100);
     if (deliveryOptions.length === 0) { setFormError("Select at least one delivery option."); return; }
 
     setLoading(true);

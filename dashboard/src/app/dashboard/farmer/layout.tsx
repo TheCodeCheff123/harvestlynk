@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
 import Topbar from "@/components/Topbar";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +9,8 @@ export default function FarmerLayout({ children }: { children: React.ReactNode }
   const [menuOpen, setMenuOpen] = useState(false);
   const { user, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
+  const isChatDetail = /\/messages\/[^/]+/.test(pathname);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -37,7 +39,7 @@ export default function FarmerLayout({ children }: { children: React.ReactNode }
           />
         )}
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
-        <main className="flex-1 overflow-y-auto bg-white p-4 md:p-8">
+        <main className={`flex-1 bg-white ${isChatDetail ? "overflow-hidden p-0" : "overflow-y-auto p-4 md:p-8"}`}>
           {children}
         </main>
       </div>

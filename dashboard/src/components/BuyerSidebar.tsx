@@ -3,11 +3,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { useChatUnread } from "@/hooks/useChat";
 
 const navItems = [
   { label: "Dashboard",      icon: "ri-layout-grid-line",     href: "/dashboard/buyer" },
   { label: "Market Place",   icon: "ri-store-2-line",         href: "/dashboard/buyer/marketplace" },
   { label: "Cart",           icon: "ri-shopping-bag-3-line",  href: "/dashboard/buyer/checkout" },
+  { label: "Messages",       icon: "ri-chat-3-line",          href: "/dashboard/buyer/messages" },
   { label: "Orders",         icon: "ri-list-ordered",         href: "/dashboard/buyer/orders" },
   { label: "Wallet Balance", icon: "ri-wallet-3-line",        href: "/dashboard/buyer/wallet" },
   { label: "Profile",        icon: "ri-user-line",            href: "/dashboard/buyer/profile" },
@@ -24,6 +26,7 @@ export default function BuyerSidebar({ open, onClose }: Props) {
   const { logout } = useAuth();
   const { items } = useCart();
   const cartCount = items.length;
+  const { unreadCount: chatUnread } = useChatUnread();
 
   async function handleLogout() {
     onClose();
@@ -50,8 +53,11 @@ export default function BuyerSidebar({ open, onClose }: Props) {
 
       <nav className="pt-2 md:pt-4 px-3 flex-1 overflow-y-auto">
         {navItems.map((item) => {
-          const active = pathname === item.href;
-          const badge = item.label === "Cart" && cartCount > 0 ? cartCount : 0;
+          const active = pathname.startsWith(item.href) && (item.href !== "/dashboard/buyer" || pathname === item.href);
+          const badge =
+            item.label === "Cart" && cartCount > 0 ? cartCount
+            : item.label === "Messages" && chatUnread > 0 ? chatUnread
+            : 0;
           return (
             <Link
               key={item.href}
@@ -66,7 +72,7 @@ export default function BuyerSidebar({ open, onClose }: Props) {
               <i className={`${item.icon} text-lg`} />
               {item.label}
               {badge > 0 && (
-                <span className={`ml-auto w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${active ? "bg-white text-[#0D631B]" : "bg-[#0D631B] text-white"}`}>
+                <span className={`ml-auto w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${active ? "bg-white text-[#0D631B]" : item.label === "Messages" ? "bg-red-500 text-white" : "bg-[#0D631B] text-white"}`}>
                   {badge > 9 ? "9+" : badge}
                 </span>
               )}

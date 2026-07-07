@@ -91,7 +91,7 @@ export default function FarmerMarketplace() {
         </div>
         {totalItems > 0 && (
           <Link
-            href="/dashboard/buyer/checkout"
+            href="/dashboard/farmer/checkout"
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#0D631B] text-white text-sm font-medium hover:bg-[#0a4f15] transition-colors flex-shrink-0"
           >
             <i className="ri-shopping-cart-line" />
@@ -199,7 +199,7 @@ export default function FarmerMarketplace() {
                 <div className="p-4">
                   <p className="font-semibold text-gray-900 text-sm mb-0.5 truncate">{listing.product_name}</p>
                   <p className="text-[#0D631B] font-bold text-base mb-1">
-                    ₦{listing.price_per_unit.toLocaleString("en-NG")}{" "}
+                    ₦{(listing.price_per_unit / 100).toLocaleString("en-NG")}{" "}
                     <span className="text-gray-400 text-xs font-normal">/ {listing.unit}</span>
                   </p>
                   <div className="flex items-center justify-between text-xs text-gray-400 mb-3">

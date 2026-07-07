@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { staggerContainer, fadeUp, scaleIn } from "@/lib/motion";
-import { marketplaceApi, type PublicListing } from "@/lib/api";
+import { marketplaceApi, chatApi, type PublicListing } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 
 const CATEGORIES = [
@@ -27,6 +28,35 @@ const CATEGORY_STYLE: Record<string, { bg: string; icon: string }> = {
   Spices:             { bg: "from-red-100 to-red-200",      icon: "ri-leaf-line text-red-500" },
   Other:              { bg: "from-gray-100 to-gray-200",    icon: "ri-box-3-line text-gray-500" },
 };
+
+/** Small "Chat with Farmer" button that creates or opens a conversation. */
+function ChatButton({ listingId }: { listingId: string }) {
+  const router = useRouter();
+  const [chatting, setChatting] = useState(false);
+
+  async function handleChat() {
+    setChatting(true);
+    try {
+      const conv = await chatApi.createConversation(listingId);
+      router.push(`/dashboard/buyer/messages/${conv.conversation_id}`);
+    } catch {
+      setChatting(false);
+    }
+  }
+
+  return (
+    <button
+      onClick={handleChat}
+      disabled={chatting}
+      className="mt-2 w-full py-2 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:border-[#0D631B] hover:text-[#0D631B] transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+    >
+      {chatting
+        ? <><i className="ri-loader-4-line animate-spin text-xs" /> Opening…</>
+        : <><i className="ri-chat-3-line text-sm" /> Chat with Farmer</>
+      }
+    </button>
+  );
+}
 
 export default function BuyerMarketplace() {
   const { addItem, items, totalItems } = useCart();
@@ -185,7 +215,7 @@ export default function BuyerMarketplace() {
                   <div className="flex items-start justify-between mb-1 gap-1">
                     <p className="font-semibold text-gray-900 text-sm leading-snug">{p.product_name}</p>
                     <p className="text-[#0D631B] font-bold text-sm whitespace-nowrap">
-                      ₦{p.price_per_unit.toLocaleString("en-NG")}
+                      ₦{(p.price_per_unit / 100).toLocaleString("en-NG")}
                     </p>
                   </div>
                   <p className="text-gray-400 text-xs flex items-center gap-1 mb-0.5">
@@ -218,6 +248,7 @@ export default function BuyerMarketplace() {
                       <><i className="ri-add-line" /> Add to Cart</>
                     )}
                   </motion.button>
+                  <ChatButton listingId={p.listing_id} />
                 </div>
               </motion.div>
             );

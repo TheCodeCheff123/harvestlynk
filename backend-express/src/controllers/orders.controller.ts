@@ -219,11 +219,16 @@ export async function createOrder(req: AuthRequest, res: Response) {
 
   if (payment_method === "checkout") {
     try {
+      const appBase = process.env["FRONTEND_URL"] ?? "http://localhost:3000";
+      // Redirect back to the orders list page with a success flag.
+      // The dynamic-segment path (/orders/:id) does not exist as a Next.js route;
+      // using the list page + query params avoids the 404.
+      const callbackUrl = `${appBase}/dashboard/buyer/orders?payment=success&ref=${encodeURIComponent(order.orderRef)}&orderId=${encodeURIComponent(order.orderId)}`;
       const result = await createCheckoutLink({
         amountKobo: totalAmountKobo,
         customerEmail: req.user!.email,
         orderReference: order.orderRef,
-        callbackUrl: `${process.env["FRONTEND_URL"] ?? "http://localhost:3000"}/dashboard/buyer/orders/${order.orderId}`,
+        callbackUrl,
         customerId: req.user!.userId,
         allowedPaymentMethods: ["Card", "Transfer"],
         orderMetaData: {

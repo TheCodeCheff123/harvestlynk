@@ -48,6 +48,13 @@ export default function FarmerNotifications() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setUnverified(localStorage.getItem("hl_farmer_verified") === "false");
+    // Re-check on focus so the banner hides after the user completes onboarding
+    function onFocus() {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUnverified(localStorage.getItem("hl_farmer_verified") === "false");
+    }
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, []);
 
   const filtered = notifications.filter((n) => {

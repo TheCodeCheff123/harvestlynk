@@ -304,7 +304,7 @@ export default function FarmerOrders() {
                         {parseFloat(o.quantity)} {o.listing.unit}
                       </td>
                       <td className="px-4 md:px-6 py-4 font-semibold text-gray-900">
-                        ₦{o.total_amount.toLocaleString("en-NG")}
+                        ₦{(o.total_amount / 100).toLocaleString("en-NG")}
                       </td>
                       <td className="px-4 md:px-6 py-4 text-gray-500 capitalize text-xs">
                         {o.delivery_method.replace(/_/g, " ")}

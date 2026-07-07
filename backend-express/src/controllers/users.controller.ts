@@ -1,11 +1,13 @@
 import type { Request, Response } from "express";
-import { eq, count, sum, and } from "drizzle-orm";
+import { eq, count, sum, and, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { users, wallets, listings, orders, livenessChecks } from "../db/schema.js";
 import { safeUser } from "./auth.controller.js";
 import type { AuthRequest } from "../middleware/auth.js";
 import { uploadToCloudinary } from "../utils/cloudinary.js";
+
+const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,30}$/;
 
 const updateProfileSchema = z.object({
   fullName: z.string().min(2).trim().optional(),
@@ -21,8 +23,33 @@ const updateProfileSchema = z.object({
   bankAccountName: z.string().optional(),
   preferredLanguage: z.string().optional(),
   farmName: z.string().optional(),
+  username: z.string().max(30).optional(),
 });
 
+
+// ─── Check username availability ─────────────────────────────────────────────
+
+export async function checkUsername(req: Request, res: Response) {
+  const username = typeof req.query["username"] === "string" ? req.query["username"].trim() : "";
+  if (!username) {
+    res.json({ available: false, valid: false });
+    return;
+  }
+
+  const valid = USERNAME_REGEX.test(username);
+  if (!valid) {
+    res.json({ available: false, valid: false });
+    return;
+  }
+
+  const [existing] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(sql`LOWER(${users.username}) = LOWER(${username})`)
+    .limit(1);
+
+  res.json({ available: !existing, valid: true });
+}
 
 export async function getUser(req: Request, res: Response) {
   const id = String(req.params["id"]);
@@ -74,11 +101,35 @@ export async function updateUser(req: AuthRequest, res: Response) {
   if (data.preferredLanguage !== undefined) updates["preferredLanguage"] = data.preferredLanguage;
   if (data.farmName !== undefined) updates["farmName"] = data.farmName;
 
-  const [updated] = await db
-    .update(users)
-    .set(updates)
-    .where(eq(users.id, req.user!.userId))
-    .returning();
+  if (data.username !== undefined) {
+    if (data.username === "") {
+      // Allow clearing username
+      updates["username"] = null;
+    } else {
+      const uname = data.username.toLowerCase();
+      if (!USERNAME_REGEX.test(data.username)) {
+        res.status(400).json({ error: "Invalid username format. Use 3–30 letters, numbers, or underscores." });
+        return;
+      }
+      updates["username"] = uname;
+    }
+  }
+
+  let updated: typeof users.$inferSelect | undefined;
+  try {
+    [updated] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, req.user!.userId))
+      .returning();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("users_username_lower_idx") || msg.includes("unique")) {
+      res.status(409).json({ error: "Username already taken" });
+      return;
+    }
+    throw err;
+  }
 
   if (!updated) { res.status(404).json({ error: "User not found" }); return; }
   res.json(safeUser(updated));

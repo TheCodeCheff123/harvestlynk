@@ -34,8 +34,14 @@ export function useNotifications() {
     // Re-fetch when window gains focus so the topbar badge stays in sync
     // after the user marks all as read on the notifications page
     function onFocus() { void fetchAll(); }
+    // Re-fetch immediately when any instance marks all as read
+    function onReadAll() { void fetchAll(); }
     window.addEventListener("focus", onFocus);
-    return () => window.removeEventListener("focus", onFocus);
+    window.addEventListener("hl:notifications:read-all", onReadAll);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("hl:notifications:read-all", onReadAll);
+    };
   }, [fetchAll]);
 
   // WebSocket connection for real-time notification push
@@ -97,8 +103,13 @@ export function useNotifications() {
   const markAllRead = useCallback(async () => {
     try {
       await notificationsApi.markAllRead();
+      // Optimistic update in this instance
       setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
       setUnreadCount(0);
+      // Broadcast to all other hook instances (e.g. Topbar) so they refetch immediately
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("hl:notifications:read-all"));
+      }
     } catch {
       // silently fail
     }

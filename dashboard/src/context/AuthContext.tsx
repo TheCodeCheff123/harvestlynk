@@ -46,6 +46,7 @@ const DEV_USER: User = {
   image: null,
   phoneNumber: null,
   role: "farmer",
+  username: null,
   farmName: "Dev Farm",
   location: "Lagos",
   createdAt: new Date().toISOString(),

@@ -73,7 +73,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
         farmer_name: listing.farmer.name,
         farm_name: listing.farmer.farmName ?? null,
         category: listing.category,
-        price_per_unit: listing.price_per_unit,
+        // price_per_unit is stored in kobo by the backend — convert to naira for display
+        price_per_unit: listing.price_per_unit / 100,
         unit: listing.unit,
         quantity: qty,
         max_quantity: parseFloat(listing.quantity),

@@ -281,7 +281,7 @@ export default function BuyerDashboard() {
                     <div className="flex items-center justify-between mb-1">
                       <p className="font-semibold text-gray-900 text-sm">{p.product_name}</p>
                       <p className="text-[#0D631B] font-bold text-sm">
-                        ₦{p.price_per_unit.toLocaleString("en-NG")}
+                        ₦{(p.price_per_unit / 100).toLocaleString("en-NG")}
                       </p>
                     </div>
                     <p className="text-gray-400 text-xs flex items-center gap-1 mb-3">

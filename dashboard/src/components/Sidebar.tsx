@@ -2,12 +2,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { useChatUnread } from "@/hooks/useChat";
 
 const navItems = [
   { label: "Dashboard",       icon: "ri-layout-grid-line",      href: "/dashboard/farmer" },
   { label: "AI Crop Doctor",  icon: "ri-medicine-bottle-line",   href: "/dashboard/farmer/ai-crop-doctor" },
   { label: "My farm",         icon: "ri-leaf-line",              href: "/dashboard/farmer/farm" },
   { label: "Market Place",    icon: "ri-store-2-line",           href: "/dashboard/farmer/marketplace" },
+  { label: "Messages",        icon: "ri-chat-3-line",            href: "/dashboard/farmer/messages" },
   { label: "Orders",          icon: "ri-list-ordered",           href: "/dashboard/farmer/orders" },
   { label: "Wallet Balance",  icon: "ri-wallet-3-line",          href: "/dashboard/farmer/wallet" },
   { label: "Profile",         icon: "ri-user-line",              href: "/dashboard/farmer/profile" },
@@ -22,6 +24,7 @@ export default function Sidebar({ open, onClose }: Props) {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
+  const { unreadCount } = useChatUnread();
 
   async function handleLogout() {
     onClose();
@@ -48,7 +51,8 @@ export default function Sidebar({ open, onClose }: Props) {
 
       <nav className="pt-2 md:pt-4 px-3 flex-1 overflow-y-auto">
         {navItems.map((item) => {
-          const active = pathname === item.href;
+          const active = pathname.startsWith(item.href) && (item.href !== "/dashboard/farmer" || pathname === item.href);
+          const badge = item.label === "Messages" && unreadCount > 0 ? unreadCount : 0;
           return (
             <Link
               key={item.href}
@@ -62,6 +66,11 @@ export default function Sidebar({ open, onClose }: Props) {
             >
               <i className={`${item.icon} text-lg`} />
               {item.label}
+              {badge > 0 && (
+                <span className={`ml-auto w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${active ? "bg-white text-[#0D631B]" : "bg-red-500 text-white"}`}>
+                  {badge > 9 ? "9+" : badge}
+                </span>
+              )}
             </Link>
           );
         })}

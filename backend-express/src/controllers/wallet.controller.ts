@@ -4,7 +4,8 @@ import { z } from "zod";
 import { randomUUID } from "node:crypto";
 import { db } from "../db/index.js";
 import { getNigerianBanks, lookupAccount, initiateTransfer, requeryTransfer, fetchVirtualAccountTransactions, createCheckoutLink, type TransferOutcome } from "../utils/nomba.js";
-import { payouts, wallets, transactions, walletLedgerEntries, virtualAccounts } from "../db/schema.js";
+import { payouts, wallets, transactions, walletLedgerEntries, virtualAccounts, users } from "../db/schema.js";
+import { createNotification } from "../utils/notifications.js";
 import type { AuthRequest } from "../middleware/auth.js";
 
 type WithdrawIdempotencyKey = string | null;
@@ -843,4 +844,143 @@ export async function createTopup(req: AuthRequest, res: Response) {
   }
 
   res.json({ checkout_url: checkoutLink, order_reference: orderReference, amount });
+}
+
+// ─── Internal Transfer ────────────────────────────────────────────────────────
+
+const internalTransferSchema = z.object({
+  to_username: z.string().min(1),
+  amount: z.number().int().min(10000, "Minimum transfer is ₦100 (10000 kobo)"),
+  note: z.string().max(100).optional(),
+});
+
+export async function internalTransfer(req: AuthRequest, res: Response) {
+  const parsed = internalTransferSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Validation failed", details: parsed.error.flatten().fieldErrors });
+    return;
+  }
+
+  const { to_username, amount, note } = parsed.data;
+  const senderId = req.user!.userId;
+
+  // Look up recipient by username (case-insensitive)
+  const [recipient] = await db
+    .select({ id: users.id, firstName: users.firstName, lastName: users.lastName, username: users.username })
+    .from(users)
+    .where(sql`LOWER(${users.username}) = LOWER(${to_username})`)
+    .limit(1);
+
+  if (!recipient) {
+    res.status(404).json({ error: `No user found with username @${to_username}` });
+    return;
+  }
+
+  if (recipient.id === senderId) {
+    res.status(400).json({ error: "You cannot transfer to yourself" });
+    return;
+  }
+
+  // Advisory-lock both wallets to prevent race conditions (lower id first to prevent deadlock)
+  const lockA = senderId < recipient.id ? senderId : recipient.id;
+  const lockB = senderId < recipient.id ? recipient.id : senderId;
+
+  let transactionId: string;
+  let senderName: string;
+
+  try {
+    transactionId = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${lockA})), pg_advisory_xact_lock(hashtext(${lockB}))`);
+
+      const [senderWallet] = await tx.select().from(wallets).where(eq(wallets.userId, senderId)).limit(1);
+      if (!senderWallet) throw new Error("Sender wallet not found");
+      if (senderWallet.availableBalance < amount) throw new Error("Insufficient balance");
+
+      const [recipientWallet] = await tx.select().from(wallets).where(eq(wallets.userId, recipient.id)).limit(1);
+      if (!recipientWallet) throw new Error("Recipient wallet not found");
+
+      const [senderUser] = await tx.select({ firstName: users.firstName, lastName: users.lastName, username: users.username }).from(users).where(eq(users.id, senderId)).limit(1);
+      senderName = senderUser ? `${senderUser.firstName} ${senderUser.lastName}` : "User";
+      const senderHandle = senderUser?.username ?? senderId;
+      const recipientHandle = recipient.username ?? recipient.id;
+      const recipientFullName = `${recipient.firstName} ${recipient.lastName}`;
+
+      const newSenderBalance = senderWallet.availableBalance - amount;
+      const newRecipientBalance = recipientWallet.availableBalance + amount;
+
+      await tx.update(wallets).set({ availableBalance: newSenderBalance, updatedAt: new Date() }).where(eq(wallets.walletId, senderWallet.walletId));
+      await tx.update(wallets).set({ availableBalance: newRecipientBalance, updatedAt: new Date() }).where(eq(wallets.walletId, recipientWallet.walletId));
+
+      const idempotencyKeySender = `transfer_sender_${senderId}_${recipient.id}_${Date.now()}`;
+      const idempotencyKeyRecipient = `transfer_recipient_${recipient.id}_${senderId}_${Date.now()}`;
+
+      await tx.insert(walletLedgerEntries).values([
+        {
+          walletId: senderWallet.walletId, userId: senderId, type: "debit", amount,
+          balanceBefore: senderWallet.availableBalance, balanceAfter: newSenderBalance,
+          referenceId: recipient.id, referenceType: "internal_transfer",
+          idempotencyKey: idempotencyKeySender,
+          description: note ? `Transfer to @${recipientHandle}: ${note}` : `Transfer to @${recipientHandle}`,
+          status: "completed",
+        },
+        {
+          walletId: recipientWallet.walletId, userId: recipient.id, type: "credit", amount,
+          balanceBefore: recipientWallet.availableBalance, balanceAfter: newRecipientBalance,
+          referenceId: senderId, referenceType: "internal_transfer",
+          idempotencyKey: idempotencyKeyRecipient,
+          description: note ? `Transfer from @${senderHandle}: ${note}` : `Transfer from @${senderHandle}`,
+          status: "completed",
+        },
+      ]);
+
+      const [senderTx] = await tx.insert(transactions).values({
+        walletId: senderWallet.walletId, userId: senderId, type: "debit", amount,
+        balanceBefore: senderWallet.availableBalance, balanceAfter: newSenderBalance,
+        referenceType: "internal_transfer",
+        description: note ? `Transfer to @${recipientHandle}: ${note}` : `Transfer to @${recipientHandle}`,
+        status: "completed",
+      }).returning({ transactionId: transactions.transactionId });
+
+      await tx.insert(transactions).values({
+        walletId: recipientWallet.walletId, userId: recipient.id, type: "credit", amount,
+        balanceBefore: recipientWallet.availableBalance, balanceAfter: newRecipientBalance,
+        referenceType: "internal_transfer",
+        description: note ? `Transfer from @${senderHandle}: ${note}` : `Transfer from @${senderHandle}`,
+        status: "completed",
+      });
+
+      // Notifications
+      const nairaAmount = (amount / 100).toLocaleString("en-NG", { minimumFractionDigits: 2 });
+      await createNotification({
+        userId: senderId,
+        type: "payment",
+        title: "Transfer Sent",
+        message: `You sent ₦${nairaAmount} to @${recipientHandle} (${recipientFullName})`,
+        referenceType: "internal_transfer",
+      });
+      await createNotification({
+        userId: recipient.id,
+        type: "payment",
+        title: "Transfer Received",
+        message: `You received ₦${nairaAmount} from @${senderHandle} (${senderName!})`,
+        referenceType: "internal_transfer",
+      });
+
+      return senderTx!.transactionId;
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Transfer failed";
+    const status = msg.includes("wallet not found") ? 404 : msg.includes("Insufficient") ? 400 : 500;
+    res.status(status).json({ error: msg });
+    return;
+  }
+
+  const recipientFullName = `${recipient.firstName} ${recipient.lastName}`;
+  res.json({
+    success: true,
+    amount,
+    recipient_name: recipientFullName,
+    recipient_username: recipient.username ?? to_username,
+    transaction_id: transactionId!,
+  });
 }

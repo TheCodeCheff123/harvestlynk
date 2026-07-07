@@ -67,7 +67,7 @@ export default function Topbar({ onMenuToggle }: Props) {
       <div className="flex items-center gap-2 md:gap-3 shrink-0">
         {/* Cart icon — buyer AND farmer (farmer marketplace) */}
         <Link
-          href={isBuyer ? "/dashboard/buyer/checkout" : "/dashboard/buyer/checkout"}
+          href={isBuyer ? "/dashboard/buyer/checkout" : "/dashboard/farmer/checkout"}
           className="relative text-gray-500 hover:text-gray-800 transition-colors"
           aria-label="Cart"
         >

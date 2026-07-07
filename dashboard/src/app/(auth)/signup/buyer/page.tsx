@@ -220,16 +220,18 @@ export default function BuyerSignup() {
                 <div className="flex-1 h-px bg-gray-200" />
               </div>
 
-              <div className="w-full overflow-hidden">
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={() => setFormError("Google sign-up failed. Please try again.")}
-                  text="signup_with"
-                  shape="pill"
-                  theme="outline"
-                  useOneTap={false}
-                  width="400"
-                />
+              <div className="w-full flex justify-center overflow-hidden">
+                <div className="w-full max-w-full">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setFormError("Google sign-up failed. Please try again.")}
+                    text="signup_with"
+                    shape="pill"
+                    theme="outline"
+                    useOneTap={false}
+                    width="400"
+                  />
+                </div>
               </div>
             </div>
 

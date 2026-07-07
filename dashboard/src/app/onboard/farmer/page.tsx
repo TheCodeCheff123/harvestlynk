@@ -46,21 +46,9 @@ function StepBar({ step }: { step: number }) {
 
 // ─── Step 1: Bank Account ────────────────────────────────────────────────────
 
-const DEFAULT_BANKS = [
-  { code: "058", name: "Guaranty Trust Bank (GTB)" },
-  { code: "044", name: "Access Bank" },
-  { code: "011", name: "First Bank of Nigeria" },
-  { code: "057", name: "Zenith Bank" },
-  { code: "033", name: "United Bank for Africa (UBA)" },
-  { code: "035", name: "Wema Bank" },
-  { code: "221", name: "Stanbic IBTC Bank" },
-  { code: "050", name: "Ecobank Nigeria" },
-  { code: "070", name: "Fidelity Bank" },
-  { code: "030", name: "Heritage Bank" },
-];
-
 function StepBankAccount({ onContinue, onSkip }: { onContinue: () => void; onSkip: () => void }) {
-  const [banks, setBanks] = useState(DEFAULT_BANKS);
+  const [banks, setBanks] = useState<{ code: string; name: string }[]>([]);
+  const [banksLoading, setBanksLoading] = useState(true);
   const [bankCode, setBankCode] = useState("");
   const [accountNumber, setAccountNumber] = useState("");
   const [accountName, setAccountName] = useState("");
@@ -72,7 +60,8 @@ function StepBankAccount({ onContinue, onSkip }: { onContinue: () => void; onSki
   useEffect(() => {
     walletApi.getBanks()
       .then((res) => setBanks(res.banks))
-      .catch(() => {}); // keep defaults on failure
+      .catch(() => {})
+      .finally(() => setBanksLoading(false));
   }, []);
 
   async function handleVerify() {
@@ -135,9 +124,10 @@ function StepBankAccount({ onContinue, onSkip }: { onContinue: () => void; onSki
           <select
             value={bankCode}
             onChange={(e) => { setBankCode(e.target.value); setAccountName(""); setVerifyError(""); }}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#0D631B] bg-white"
+            disabled={banksLoading}
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#0D631B] bg-white disabled:bg-gray-50 disabled:cursor-not-allowed"
           >
-            <option value="">Select your bank…</option>
+            <option value="">{banksLoading ? "Loading banks…" : "Select your bank…"}</option>
             {banks.map((b, i) => (
               <option key={`${b.code}-${i}`} value={b.code}>{b.name}</option>
             ))}
@@ -162,10 +152,10 @@ function StepBankAccount({ onContinue, onSkip }: { onContinue: () => void; onSki
             />
             <button
               onClick={handleVerify}
-              disabled={verifying || accountNumber.length !== 10 || !bankCode}
+              disabled={banksLoading || verifying || accountNumber.length !== 10 || !bankCode}
               className="px-4 py-3 rounded-xl bg-gray-100 text-gray-700 text-sm font-medium hover:bg-gray-200 transition-colors disabled:opacity-50 whitespace-nowrap"
             >
-              {verifying ? <i className="ri-loader-4-line animate-spin" /> : "Verify"}
+              {banksLoading || verifying ? <i className="ri-loader-4-line animate-spin" /> : "Verify"}
             </button>
           </div>
           {verifyError && <p className="text-red-500 text-xs mt-1">{verifyError}</p>}

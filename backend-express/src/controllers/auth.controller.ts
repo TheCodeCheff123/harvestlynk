@@ -34,6 +34,7 @@ export const safeUser = (user: LocalUser) => ({
   lastName: user.lastName,
   email: user.email,
   role: user.role,
+  username: user.username ?? null,
   phoneNumber: user.phoneNumber,
   farmName: user.farmName,
   location: user.location,

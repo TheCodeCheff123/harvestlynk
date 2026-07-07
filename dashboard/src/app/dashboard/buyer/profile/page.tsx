@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { motion } from "framer-motion";
@@ -54,31 +54,66 @@ export default function BuyerProfile() {
 
   // Edit profile state
   const [editOpen, setEditOpen] = useState(false);
-  const [editName, setEditName] = useState("");
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
   const [editState, setEditState] = useState("");
   const [editLga, setEditLga] = useState("");
+  const [editUsername, setEditUsername] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
   const [editSuccess, setEditSuccess] = useState(false);
 
+  // Username availability check
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const usernameDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleUsernameChange(val: string) {
+    setEditUsername(val);
+    setUsernameStatus("idle");
+    if (usernameDebounce.current) clearTimeout(usernameDebounce.current);
+    const stripped = val.replace(/^@/, "");
+    if (!stripped) return;
+    usernameDebounce.current = setTimeout(async () => {
+      setUsernameStatus("checking");
+      try {
+        const { available, valid } = await usersApi.checkUsername(stripped);
+        if (!valid) setUsernameStatus("invalid");
+        else if (available) setUsernameStatus("available");
+        else if (stripped.toLowerCase() === (user?.username ?? "").toLowerCase()) setUsernameStatus("available");
+        else setUsernameStatus("taken");
+      } catch { setUsernameStatus("idle"); }
+    }, 400);
+  }
+
   function openEdit() {
-    setEditName(user?.name ?? "");
+    const nameParts = (user?.name ?? "").trim().split(" ");
+    setEditFirstName(nameParts[0] ?? "");
+    setEditLastName(nameParts.slice(1).join(" ") ?? "");
+    setEditPhone(user?.phoneNumber ?? "");
     setEditState(user?.location_state ?? "");
     setEditLga(user?.location_lga ?? "");
+    setEditUsername(user?.username ?? "");
+    setUsernameStatus("idle");
     setEditError("");
     setEditSuccess(false);
     setEditOpen(true);
   }
 
   async function handleEditSave() {
-    if (!editName.trim()) { setEditError("Full name is required."); return; }
+    if (!editFirstName.trim()) { setEditError("First name is required."); return; }
+    if (usernameStatus === "taken") { setEditError("That username is already taken."); return; }
+    if (usernameStatus === "invalid") { setEditError("Username must be 3–30 letters, numbers, or underscores."); return; }
     setEditError("");
     setEditLoading(true);
     try {
       await usersApi.updateUser({
-        fullName: editName.trim(),
+        firstName: editFirstName.trim(),
+        lastName: editLastName.trim() || undefined,
+        phoneNumber: editPhone.trim() || undefined,
         locationState: editState.trim() || undefined,
         locationLga: editLga.trim() || undefined,
+        username: editUsername.replace(/^@/, "").trim() || "",
       });
       await refreshUser();
       setEditSuccess(true);
@@ -121,7 +156,8 @@ export default function BuyerProfile() {
   const completedOrders = orders.filter((o) => o.status === "completed");
   const activeOrders    = orders.filter((o) => ["processing", "pending_payment"].includes(o.status));
   const disputedOrders  = orders.filter((o) => o.status === "disputed");
-  const totalSpent      = completedOrders.reduce((s, o) => s + o.total_amount, 0);
+  // total_amount comes from the backend in kobo — convert to naira for display
+  const totalSpent      = completedOrders.reduce((s, o) => s + o.total_amount / 100, 0);
   const availableBalance = wallet?.available_balance ? formatNaira(wallet.available_balance) : "₦0.00";
 
   return (
@@ -161,6 +197,14 @@ export default function BuyerProfile() {
                 <i className="ri-checkbox-circle-line" /> Verified Buyer
               </span>
             </div>
+            {user?.username && (
+              <span
+                title="Share your @handle so others can send you money instantly."
+                className="inline-block mt-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-mono cursor-default"
+              >
+                @{user.username}
+              </span>
+            )}
             <p className="text-gray-400 text-sm mt-1">{location} · Member since {memberSince}</p>
             <div className="flex gap-4 mt-3 text-sm text-gray-500 md:flex-col">
               <span className="flex items-center gap-1.5">
@@ -263,7 +307,7 @@ export default function BuyerProfile() {
                       <p className="text-xs text-gray-400 mt-0.5">{relativeDate(o.created_at)}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
-                      <p className="text-sm font-bold text-[#0D631B]">₦{o.total_amount.toLocaleString("en-NG")}</p>
+                      <p className="text-sm font-bold text-[#0D631B]">₦{(o.total_amount / 100).toLocaleString("en-NG")}</p>
                       <span className={`inline-block mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${st.badge}`}>
                         {st.label}
                       </span>
@@ -364,9 +408,11 @@ export default function BuyerProfile() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {[
-                { label: "Full Name *", value: editName, set: setEditName, placeholder: "Your full name" },
-                { label: "State",       value: editState, set: setEditState, placeholder: "e.g. Lagos" },
-                { label: "LGA",         value: editLga,   set: setEditLga,   placeholder: "e.g. Ikeja" },
+                { label: "First Name *", value: editFirstName, set: setEditFirstName, placeholder: "e.g. John" },
+                { label: "Last Name",    value: editLastName,  set: setEditLastName,  placeholder: "e.g. Doe" },
+                { label: "Phone Number", value: editPhone,     set: setEditPhone,     placeholder: "+234 000 000 0000" },
+                { label: "State",        value: editState,     set: setEditState,     placeholder: "e.g. Lagos" },
+                { label: "LGA",          value: editLga,       set: setEditLga,       placeholder: "e.g. Ikeja" },
               ].map(({ label, value, set, placeholder }) => (
                 <div key={label}>
                   <label className="block text-xs font-semibold text-gray-500 mb-1">{label}</label>
@@ -378,6 +424,28 @@ export default function BuyerProfile() {
                   />
                 </div>
               ))}
+              {/* Username */}
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-gray-500 mb-1">Username</label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">@</span>
+                  <input
+                    value={editUsername.replace(/^@/, "")}
+                    onChange={(e) => handleUsernameChange(e.target.value)}
+                    placeholder="handle"
+                    maxLength={30}
+                    className="w-full pl-7 pr-9 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:border-[#0D631B] transition-colors"
+                  />
+                  {usernameStatus === "checking" && <i className="ri-loader-4-line animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />}
+                  {usernameStatus === "available" && <i className="ri-checkbox-circle-line absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm" />}
+                  {usernameStatus === "taken" && <i className="ri-close-circle-line absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm" />}
+                  {usernameStatus === "invalid" && <i className="ri-error-warning-line absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-sm" />}
+                </div>
+                {usernameStatus === "available" && <p className="text-green-600 text-[10px] mt-0.5">Available</p>}
+                {usernameStatus === "taken" && <p className="text-red-500 text-[10px] mt-0.5">Already taken</p>}
+                {usernameStatus === "invalid" && <p className="text-amber-600 text-[10px] mt-0.5">Invalid format (3–30 letters, numbers, underscores)</p>}
+                <p className="text-gray-400 text-[10px] mt-0.5">Others can send you money using your @handle</p>
+              </div>
             </div>
             {editError && <p className="text-red-500 text-xs mt-2 p-2 bg-red-50 rounded-xl">{editError}</p>}
             {editSuccess && (
@@ -401,7 +469,8 @@ export default function BuyerProfile() {
   
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           {[
-            { label: "Full Name",       value: displayName,                        icon: "ri-user-line" },
+            { label: "First Name",      value: user?.name?.split(" ")[0] ?? displayName, icon: "ri-user-line" },
+            { label: "Last Name",       value: user?.name?.split(" ").slice(1).join(" ") || "—", icon: "ri-user-line" },
             { label: "Email",           value: email,                              icon: "ri-mail-line" },
             { label: "Phone",           value: phone,                              icon: "ri-phone-line" },
             { label: "Location",        value: location,                           icon: "ri-map-pin-line" },

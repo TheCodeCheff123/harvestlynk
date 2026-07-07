@@ -1,21 +1,10 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, fadeUp, scaleIn } from "@/lib/motion";
 import { useAuth } from "@/context/AuthContext";
-import { walletApi, formatNaira, nairaToKobo, type Transaction } from "@/lib/api";
-
-const DEFAULT_BANKS = [
-  { code: "058", name: "Guaranty Trust Bank (GTB)" },
-  { code: "044", name: "Access Bank" },
-  { code: "011", name: "First Bank of Nigeria" },
-  { code: "057", name: "Zenith Bank" },
-  { code: "033", name: "United Bank for Africa (UBA)" },
-  { code: "035", name: "Wema Bank" },
-  { code: "221", name: "Stanbic IBTC Bank" },
-  { code: "070", name: "Fidelity Bank" },
-];
+import { walletApi, usersApi, formatNaira, nairaToKobo, type Transaction } from "@/lib/api";
 
 export default function BuyerWallet() {
   const { wallet, refreshWallet } = useAuth();
@@ -31,13 +20,62 @@ export default function BuyerWallet() {
   const [topupLoading, setTopupLoading] = useState(false);
   const [topupError, setTopupError] = useState("");
 
+  // Send to User state
+  const [showSend, setShowSend] = useState(false);
+  const [sendUsername, setSendUsername] = useState("");
+  const [sendAmount, setSendAmount] = useState("");
+  const [sendNote, setSendNote] = useState("");
+  const [sendLoading, setSendLoading] = useState(false);
+  const [sendError, setSendError] = useState("");
+  const [sendSuccess, setSendSuccess] = useState("");
+  const [sendRecipientStatus, setSendRecipientStatus] = useState<"idle" | "checking" | "found" | "not_found">("idle");
+  const sendDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleSendUsernameChange(val: string) {
+    setSendUsername(val);
+    setSendRecipientStatus("idle");
+    if (sendDebounce.current) clearTimeout(sendDebounce.current);
+    const stripped = val.replace(/^@/, "").trim();
+    if (!stripped) return;
+    sendDebounce.current = setTimeout(async () => {
+      setSendRecipientStatus("checking");
+      try {
+        const { available } = await usersApi.checkUsername(stripped);
+        setSendRecipientStatus(available ? "not_found" : "found");
+      } catch { setSendRecipientStatus("idle"); }
+    }, 400);
+  }
+
+  async function handleSendTransfer() {
+    const stripped = sendUsername.replace(/^@/, "").trim();
+    if (!stripped) { setSendError("Enter a username."); return; }
+    if (sendRecipientStatus !== "found") { setSendError("No user found with that username."); return; }
+    const naira = parseFloat(sendAmount);
+    if (!naira || naira < 100) { setSendError("Minimum transfer is ₦100."); return; }
+    setSendLoading(true);
+    setSendError("");
+    setSendSuccess("");
+    try {
+      const res = await walletApi.internalTransfer({ to_username: stripped, amount: nairaToKobo(naira), note: sendNote.trim() || undefined });
+      setSendSuccess(`₦${naira.toLocaleString("en-NG")} sent to @${res.recipient_username} (${res.recipient_name})`);
+      setSendUsername(""); setSendAmount(""); setSendNote(""); setSendRecipientStatus("idle");
+      await refreshWallet();
+      loadTransactions();
+      setTimeout(() => { setShowSend(false); setSendSuccess(""); }, 2500);
+    } catch (e) {
+      setSendError(e instanceof Error ? e.message : "Transfer failed.");
+    } finally {
+      setSendLoading(false);
+    }
+  }
+
   // Withdrawal state
   const [showWithdraw, setShowWithdraw] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [withdrawBankCode, setWithdrawBankCode] = useState("");
   const [withdrawAccountNumber, setWithdrawAccountNumber] = useState("");
   const [withdrawAccountName, setWithdrawAccountName] = useState("");
-  const [banks, setBanks] = useState(DEFAULT_BANKS);
+  const [banks, setBanks] = useState<{ code: string; name: string }[]>([]);
   const [banksLoading, setBanksLoading] = useState(false);
   const [verifying, setVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState("");
@@ -119,12 +157,12 @@ export default function BuyerWallet() {
     setVerifyError("");
     setWithdrawError("");
     setShowWithdraw(true);
-    // Lazily load full bank list once
-    if (banks.length <= DEFAULT_BANKS.length) {
+    // Lazily load bank list once
+    if (banks.length === 0) {
       setBanksLoading(true);
       walletApi.getBanks()
         .then((res) => setBanks(res.banks))
-        .catch(() => {}) // keep DEFAULT_BANKS on failure
+        .catch(() => {})
         .finally(() => setBanksLoading(false));
     }
   }
@@ -251,6 +289,14 @@ export default function BuyerWallet() {
           <motion.button
             whileHover={{ scale: 1.04 }}
             whileTap={{ scale: 0.97 }}
+            onClick={() => { setShowSend((v) => !v); setSendError(""); setSendSuccess(""); }}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white font-medium text-sm hover:bg-blue-700 transition-colors"
+          >
+            <i className="ri-user-received-line" /> Send to User
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.97 }}
             onClick={handleRefreshBalance}
             disabled={refreshingBalance}
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-gray-200 text-gray-600 font-medium text-sm hover:bg-gray-50 transition-colors disabled:opacity-60"
@@ -260,6 +306,82 @@ export default function BuyerWallet() {
           </motion.button>
         </div>
       </motion.div>
+
+      {/* Send to User panel */}
+      <AnimatePresence>
+        {showSend && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="bg-white rounded-2xl border border-blue-100 p-5 space-y-4"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2"><i className="ri-send-plane-line text-blue-600" /> Send to User</h3>
+              <button onClick={() => setShowSend(false)} className="text-gray-400 hover:text-gray-600"><i className="ri-close-line" /></button>
+            </div>
+            {/* Username */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Recipient @username</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">@</span>
+                <input
+                  value={sendUsername.replace(/^@/, "")}
+                  onChange={(e) => handleSendUsernameChange(e.target.value)}
+                  placeholder="username"
+                  className="w-full pl-7 pr-9 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-500"
+                />
+                {sendRecipientStatus === "checking" && <i className="ri-loader-4-line animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />}
+                {sendRecipientStatus === "found" && <i className="ri-checkbox-circle-line absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm" />}
+                {sendRecipientStatus === "not_found" && <i className="ri-close-circle-line absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm" />}
+              </div>
+              {sendRecipientStatus === "found" && <p className="text-green-600 text-xs mt-0.5">User found</p>}
+              {sendRecipientStatus === "not_found" && <p className="text-red-500 text-xs mt-0.5">No user with that username</p>}
+            </div>
+            {/* Amount */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Amount (₦)</label>
+              <input
+                type="number"
+                min="100"
+                placeholder="0.00"
+                value={sendAmount}
+                onChange={(e) => setSendAmount(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-400 mt-0.5">Minimum ₦100</p>
+            </div>
+            {/* Note */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Note (optional)</label>
+              <input
+                type="text"
+                maxLength={100}
+                placeholder="e.g. Payment for goods"
+                value={sendNote}
+                onChange={(e) => setSendNote(e.target.value)}
+                className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            {/* Confirm summary */}
+            {sendRecipientStatus === "found" && parseFloat(sendAmount) >= 100 && (
+              <div className="bg-blue-50 rounded-xl px-4 py-3 text-xs text-blue-700">
+                You&apos;re sending <span className="font-bold">₦{parseFloat(sendAmount).toLocaleString("en-NG")}</span> to @{sendUsername.replace(/^@/, "")}
+              </div>
+            )}
+            {sendError && <p className="text-red-500 text-xs p-2 bg-red-50 rounded-xl">{sendError}</p>}
+            {sendSuccess && <p className="text-green-600 text-xs p-2 bg-green-50 rounded-xl flex items-center gap-1"><i className="ri-checkbox-circle-line" /> {sendSuccess}</p>}
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={handleSendTransfer}
+              disabled={sendLoading || sendRecipientStatus !== "found"}
+              className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {sendLoading ? <><i className="ri-loader-4-line animate-spin" /> Sending…</> : <><i className="ri-send-plane-fill" /> Confirm Transfer</>}
+            </motion.button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Withdraw Funds Panel */}
       <AnimatePresence>

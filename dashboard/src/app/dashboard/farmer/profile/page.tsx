@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -72,9 +72,32 @@ export default function Profile() {
   const [editState, setEditState] = useState("");
   const [editLga, setEditLga] = useState("");
   const [editVillage, setEditVillage] = useState("");
+  const [editUsername, setEditUsername] = useState("");
   const [editLoading, setEditLoading] = useState(false);
   const [editError, setEditError] = useState("");
   const [editSuccess, setEditSuccess] = useState(false);
+
+  // Username availability check
+  const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
+  const usernameDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleUsernameChange(val: string) {
+    setEditUsername(val);
+    setUsernameStatus("idle");
+    if (usernameDebounce.current) clearTimeout(usernameDebounce.current);
+    const stripped = val.replace(/^@/, "");
+    if (!stripped) return;
+    usernameDebounce.current = setTimeout(async () => {
+      setUsernameStatus("checking");
+      try {
+        const { available, valid } = await usersApi.checkUsername(stripped);
+        if (!valid) setUsernameStatus("invalid");
+        else if (available) setUsernameStatus("available");
+        else if (stripped.toLowerCase() === (user?.username ?? "").toLowerCase()) setUsernameStatus("available");
+        else setUsernameStatus("taken");
+      } catch { setUsernameStatus("idle"); }
+    }, 400);
+  }
 
   function openEdit() {
     const nameParts = (user?.name ?? "").trim().split(" ");
@@ -85,6 +108,8 @@ export default function Profile() {
     setEditState(user?.location_state ?? "");
     setEditLga(user?.location_lga ?? "");
     setEditVillage(user?.location_village ?? "");
+    setEditUsername(user?.username ?? "");
+    setUsernameStatus("idle");
     setEditError("");
     setEditSuccess(false);
     setEditOpen(true);
@@ -92,6 +117,8 @@ export default function Profile() {
 
   async function handleEditSave() {
     if (!editFirstName.trim()) { setEditError("First name is required."); return; }
+    if (usernameStatus === "taken") { setEditError("That username is already taken."); return; }
+    if (usernameStatus === "invalid") { setEditError("Username must be 3–30 letters, numbers, or underscores."); return; }
     setEditError("");
     setEditLoading(true);
     try {
@@ -103,6 +130,7 @@ export default function Profile() {
         locationState: editState.trim() || undefined,
         locationLga: editLga.trim() || undefined,
         locationVillage: editVillage.trim() || undefined,
+        username: editUsername.replace(/^@/, "").trim() || "",
       });
       await refreshUser();
       setEditSuccess(true);
@@ -115,9 +143,18 @@ export default function Profile() {
   }
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setUnverified(localStorage.getItem("hl_farmer_verified") === "false");
-  }, []);
+    if (!user) return;
+    const stored = localStorage.getItem("hl_farmer_verified");
+    if (stored === "false") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUnverified(true);
+    } else if (stored === null && !user.bank_account_number) {
+      localStorage.setItem("hl_farmer_verified", "false");
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setUnverified(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const fetchData = useCallback(async () => {
     setLoadingData(true);
@@ -205,6 +242,14 @@ export default function Profile() {
             </motion.div>
 
             <h2 className="text-lg font-bold text-gray-900">{displayName}</h2>
+            {user?.username && (
+              <span
+                title="Share your @handle so others can send you money instantly."
+                className="inline-block mt-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 text-xs font-mono cursor-default"
+              >
+                @{user.username}
+              </span>
+            )}
             {farmName && (
               <p className="text-[#0D631B] text-xs font-medium mt-0.5">{farmName}</p>
             )}
@@ -314,6 +359,28 @@ export default function Profile() {
                     />
                   </div>
                 ))}
+                {/* Username field */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1">Username</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">@</span>
+                    <input
+                      value={editUsername.replace(/^@/, "")}
+                      onChange={(e) => handleUsernameChange(e.target.value)}
+                      placeholder="handle"
+                      maxLength={30}
+                      className="w-full pl-7 pr-9 py-2 rounded-xl border border-gray-200 bg-gray-50 text-sm focus:outline-none focus:border-[#0D631B] focus:bg-white transition-colors"
+                    />
+                    {usernameStatus === "checking" && <i className="ri-loader-4-line animate-spin absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs" />}
+                    {usernameStatus === "available" && <i className="ri-checkbox-circle-line absolute right-3 top-1/2 -translate-y-1/2 text-green-500 text-sm" />}
+                    {usernameStatus === "taken" && <i className="ri-close-circle-line absolute right-3 top-1/2 -translate-y-1/2 text-red-500 text-sm" />}
+                    {usernameStatus === "invalid" && <i className="ri-error-warning-line absolute right-3 top-1/2 -translate-y-1/2 text-amber-500 text-sm" />}
+                  </div>
+                  {usernameStatus === "available" && <p className="text-green-600 text-[10px] mt-0.5">Available</p>}
+                  {usernameStatus === "taken" && <p className="text-red-500 text-[10px] mt-0.5">Already taken</p>}
+                  {usernameStatus === "invalid" && <p className="text-amber-600 text-[10px] mt-0.5">Invalid format (3–30 letters, numbers, underscores)</p>}
+                  <p className="text-gray-400 text-[10px] mt-0.5">Others can send you money using your @handle</p>
+                </div>
                 {editError && <p className="text-red-500 text-xs p-2.5 bg-red-50 rounded-xl">{editError}</p>}
                 {editSuccess && (
                   <p className="text-green-600 text-xs p-2.5 bg-green-50 rounded-xl flex items-center gap-1">
@@ -623,7 +690,7 @@ export default function Profile() {
                           {parseFloat(item.quantity)} {item.unit} available · {item.location_state}
                         </p>
                         <p className="text-[#0D631B] font-bold text-sm">
-                          ₦{item.price_per_unit.toLocaleString("en-NG")} / {item.unit}
+                          ₦{(item.price_per_unit / 100).toLocaleString("en-NG")} / {item.unit}
                         </p>
                       </div>
                     </motion.div>

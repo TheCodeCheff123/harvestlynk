@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { staggerContainer, fadeUp } from "@/lib/motion";
@@ -48,7 +49,8 @@ function isActive(s: BuyerOrder["status"]) {
   return s === "pending_payment" || s === "payment_confirmed" || s === "processing" || s === "ready_for_pickup";
 }
 
-export default function BuyerOrders() {
+function BuyerOrdersInner() {
+  const searchParams = useSearchParams();
   const [tab, setTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
   const [orders, setOrders] = useState<BuyerOrder[]>([]);
@@ -62,7 +64,7 @@ export default function BuyerOrders() {
 
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 4500);
   }
 
   const fetchOrders = useCallback(async () => {
@@ -80,9 +82,21 @@ export default function BuyerOrders() {
   // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
 
+  // Handle Nomba payment callback: ?payment=success&ref=ZP-XXXX&orderId=...
+  useEffect(() => {
+    if (searchParams.get("payment") === "success") {
+      const ref = searchParams.get("ref") ?? "";
+      showToast(`Payment successful${ref ? ` for order #${ref}` : ""}! Please confirm delivery once you receive your item.`);
+      // Refetch so the order status updates from pending_payment → payment_confirmed
+      fetchOrders();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function handlePayNow(orderId: string, checkoutLink?: string | null) {
     if (checkoutLink) {
-      window.open(checkoutLink, "_blank");
+      // Redirect in same tab so the payment callback lands correctly
+      window.location.href = checkoutLink;
       return;
     }
     // Dev-only: simulate payment when there is no real checkout link
@@ -172,9 +186,10 @@ export default function BuyerOrders() {
     completed: orders.filter((o) => o.status === "completed").length,
   };
 
+  // total_amount is in kobo from the backend
   const totalSpent = orders
     .filter((o) => o.status === "completed")
-    .reduce((s, o) => s + o.total_amount, 0);
+    .reduce((s, o) => s + o.total_amount / 100, 0);
 
   return (
     <motion.div className="space-y-6" variants={staggerContainer} initial="hidden" animate="show">
@@ -309,7 +324,7 @@ export default function BuyerOrders() {
                       </div>
                       <div className="text-right flex-shrink-0">
                         <p className="font-bold text-[#0D631B]">
-                          ₦{o.total_amount.toLocaleString("en-NG")}
+                          ₦{(o.total_amount / 100).toLocaleString("en-NG")}
                         </p>
                         <p className="text-gray-400 text-xs mt-0.5">{relativeDate(o.created_at)}</p>
                       </div>
@@ -441,5 +456,13 @@ export default function BuyerOrders() {
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+export default function BuyerOrders() {
+  return (
+    <Suspense>
+      <BuyerOrdersInner />
+    </Suspense>
   );
 }

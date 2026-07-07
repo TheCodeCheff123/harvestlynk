@@ -65,7 +65,8 @@ function MyFarmInner() {
 
   const activeListings = listings.filter((l) => l.status === "active");
   const draftListings = listings.filter((l) => l.status === "paused");
-  const totalValue = activeListings.reduce((sum, l) => sum + l.total_price, 0);
+  // total_price is in kobo from the backend
+  const totalValue = activeListings.reduce((sum, l) => sum + l.total_price / 100, 0);
 
   async function handleDelete(id: string) {
     try {
@@ -196,7 +197,7 @@ function MyFarmInner() {
                   <div className="p-4">
                     <p className="font-semibold text-gray-900 text-sm mb-0.5">{item.product_name}</p>
                     <p className="text-[#0D631B] text-xs font-medium mb-1">
-                      ₦{item.price_per_unit.toLocaleString("en-NG")} / {item.unit}
+                      ₦{(item.price_per_unit / 100).toLocaleString("en-NG")} / {item.unit}
                     </p>
                     <div className="flex items-center justify-between text-xs text-gray-400 mb-3">
                       <span className="flex items-center gap-1">
@@ -261,7 +262,7 @@ function MyFarmInner() {
                       </td>
                       <td className="px-4 md:px-6 py-4 text-gray-500">{row.category}</td>
                       <td className="px-4 md:px-6 py-4 text-gray-700">
-                        ₦{row.price_per_unit.toLocaleString("en-NG")} / {row.unit}
+                        ₦{(row.price_per_unit / 100).toLocaleString("en-NG")} / {row.unit}
                       </td>
                       <td className="px-4 md:px-6 py-4 text-gray-500">{relativeDate(row.created_at)}</td>
                       <td className="px-4 md:px-6 py-4">

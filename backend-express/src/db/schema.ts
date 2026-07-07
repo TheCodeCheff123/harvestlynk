@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   pgEnum,
@@ -63,6 +64,7 @@ export const users = pgTable(
     phoneNumber: text("phone_number"),
     phoneNumberVerified: boolean("phone_number_verified").default(false),
     image: text("image"),
+    username: varchar("username", { length: 30 }),
     trustScore: integer("trust_score").default(0).notNull(),
     locationState: varchar("location_state", { length: 50 }),
     locationLga: varchar("location_lga", { length: 50 }),
@@ -90,7 +92,11 @@ export const users = pgTable(
       .$onUpdateFn(() => new Date())
       .notNull(),
   },
-  (t) => [uniqueIndex("users_email_idx").on(t.email), uniqueIndex("users_phone_idx").on(t.phoneNumber)]
+  (t) => [
+    uniqueIndex("users_email_idx").on(t.email),
+    uniqueIndex("users_phone_idx").on(t.phoneNumber),
+    uniqueIndex("users_username_lower_idx").on(sql`LOWER(${t.username})`),
+  ]
 );
 
 // ==================== FARMER & SCAN TABLES ====================
@@ -639,6 +645,63 @@ export const passwordResetTokens = pgTable(
   (t) => [
     index("password_reset_tokens_user_id_idx").on(t.userId),
     index("password_reset_tokens_token_hash_idx").on(t.tokenHash),
+  ]
+);
+
+// ==================== CHAT ====================
+
+export const messagetypeEnum = pgEnum("message_type", ["text", "offer"]);
+
+export const conversations = pgTable(
+  "conversations",
+  {
+    conversationId: uuid("conversation_id").defaultRandom().primaryKey(),
+    buyerId: text("buyer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    farmerId: text("farmer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    listingId: uuid("listing_id")
+      .notNull()
+      .references(() => listings.listingId, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    lastMessageAt: timestamp("last_message_at").defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("conversations_unique_idx").on(t.buyerId, t.farmerId, t.listingId),
+    index("conversations_buyer_id_idx").on(t.buyerId),
+    index("conversations_farmer_id_idx").on(t.farmerId),
+    index("conversations_listing_id_idx").on(t.listingId),
+    index("conversations_last_message_at_idx").on(t.lastMessageAt),
+  ]
+);
+
+export const messages = pgTable(
+  "messages",
+  {
+    messageId: uuid("message_id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => conversations.conversationId, { onDelete: "cascade" }),
+    senderId: text("sender_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    content: text("content").notNull(),
+    type: messagetypeEnum("type").default("text").notNull(),
+    offerPriceKobo: integer("offer_price_kobo"),
+    offerQuantity: decimal("offer_quantity", { precision: 10, scale: 2 }),
+    offerUnit: varchar("offer_unit", { length: 30 }),
+    offerExpiresAt: timestamp("offer_expires_at"),
+    isRead: boolean("is_read").default(false).notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+  },
+  (t) => [
+    index("messages_conversation_id_idx").on(t.conversationId),
+    index("messages_conversation_created_idx").on(t.conversationId, t.createdAt),
+    index("messages_expires_at_idx").on(t.expiresAt),
+    index("messages_sender_id_idx").on(t.senderId),
   ]
 );
 
